@@ -1,0 +1,20 @@
+# Build output
+build/
+Debug/
+Release/
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+
+# IDE/user files
+.vscode/
+.vs/
+*.user
+*.launch
+
+# Generated documentation and temporary files
+*.log
+*.tmp

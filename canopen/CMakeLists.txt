@@ -1,0 +1,7 @@
+add_library(canopen_core STATIC src/co_core.c)
+target_include_directories(canopen_core PUBLIC include)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(canopen_core PRIVATE -Wall -Wextra -Wpedantic -Werror)
+elseif(MSVC)
+    target_compile_options(canopen_core PRIVATE /W4 /WX)
+endif()

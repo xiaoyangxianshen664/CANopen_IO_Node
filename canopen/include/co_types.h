@@ -21,7 +21,13 @@ typedef enum {
     CO_ERR_DLC, /* 数据长度不符合当前检查要求 */
     CO_ERR_FRAME_TYPE, /* 不支持扩展、远程或 CAN FD 帧 */
     CO_ERR_TX_BUSY, /* 传输层暂忙，调用者决定后续处理 */
-    CO_ERR_TX_FAILED /* 传输层发送失败 */
+CO_ERR_TX_FAILED, /* 传输层发送失败 */
+    CO_ERR_OD_NOT_FOUND, /* 对象字典中没有对应的 Index/Sub-index */
+    CO_ERR_OD_READ_ONLY, /* 对象只读，拒绝写入 */
+    CO_ERR_OD_LENGTH, /* 对象数据长度不匹配 */
+    CO_ERR_OD_VALUE, /* 对象值超出允许范围 */
+    CO_ERR_OD_CALLBACK, /* 对象缺少必要的读写回调 */
+    CO_ERR_OD_STATE /* 当前 NMT 状态不允许修改对象 */
 } co_status_t;
 
 typedef enum {

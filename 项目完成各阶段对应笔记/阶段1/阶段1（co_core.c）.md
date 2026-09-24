@@ -1,72 +1,35 @@
 # 阶段 1：`co_core.c` 函数实现总览
 
-## 一、总览图：四个公开/内部函数如何配合
+名字就能帮你记住这五个函数的职责：
 
-```mermaid
-flowchart TB
-    TYPES["co_types.h<br/>提供 co_status_t、co_context_t、can_frame_t 等类型"]
-    INIT["co_init()<br/>初始化节点上下文"]
-    VALID_CTX["co_context_validate()<br/>检查 ctx、tx、Node-ID"]
-    VALID_FRAME["co_frame_validate()<br/>检查帧类型、CAN-ID、DLC"]
-    SEND["co_send()<br/>校验后提交发送"]
-    CLASSIFY["co_classify_rx()<br/>按 CAN-ID 分类接收帧"]
-    CALLBACK["ctx->tx(ctx->tx_user, frame)<br/>间接调用已配置的发送回调"]
-    FAKE["PC：fake_tx()<br/>记录测试报文"]
-    STM["后续 STM32：stm32_can_send()<br/>提交给 CAN1 发送环节"]
-    RESULT["co_status_t<br/>返回 CO_OK、忽略或错误码"]
-    KIND["co_rx_kind_t<br/>CO_RX_NMT / SDO / RPDO1 / NONE"]
-
-    TYPES --> INIT
-    TYPES --> VALID_CTX
-    TYPES --> VALID_FRAME
-    TYPES --> SEND
-    TYPES --> CLASSIFY
-    INIT -->|保存 node_id、state、tx、tx_user| SEND
-    VALID_CTX --> SEND
-    VALID_CTX --> CLASSIFY
-    VALID_FRAME --> SEND
-    VALID_FRAME --> CLASSIFY
-    SEND --> CALLBACK
-    CALLBACK --> FAKE
-    CALLBACK --> STM
-    SEND --> RESULT
-    CLASSIFY --> KIND
-    CLASSIFY --> RESULT
+```c
+co_context_validate() → 检查节点上下文
+co_init()             → 初始化节点上下文
+co_frame_validate()   → 检查 CAN 帧基本格式
+co_send()             → 检查后调用发送回调
+co_classify_rx()      → 对收到的报文分类
 ```
 
-### 二、按实际调用顺序理解
+它们之间还有复用关系：
 
-```text
-1. 创建 co_context_t 类型的节点变量
-2. 调用 co_init()，保存节点号、初始状态、发送函数地址和辅助数据地址
-3. 创建 can_frame_t 类型的报文变量，并填写 id、dlc、data
-4. 调用 co_send(&ctx, &frame)
-5. co_send() 先调用 co_context_validate(ctx)
-6. 上下文通过后，再调用 co_frame_validate(frame)
-7. 报文通过后，执行 ctx->tx(ctx->tx_user, frame)
-8. 根据初始化时保存的函数地址，实际调用 fake_tx() 或 STM32 发送适配函数
+```c
+co_send()
+    ├── co_context_validate()
+    ├── co_frame_validate()
+    └── 调用发送回调
+
+co_classify_rx()
+    ├── co_context_validate()
+    ├── co_frame_validate()
+    └── 判断报文类别，写入 kind
 ```
 
-`co_classify_rx()` 是另一条接收路径：它同样先检查上下文和报文，然后根据 CAN-ID 判断报文属于 NMT、SDO、RPDO1，或者返回 `CO_IGNORED`。它只负责分类，不执行 NMT 命令、不访问对象字典、不修改 DO，也不发送响应。
 
-
-
-### 三、这个 `.c` 文件中最容易混淆的三种结果
-
-| 内容 | 由谁产生 | 表示什么 |
-|---|---|---|
-| `co_status_t` 函数返回值 | `co_init()`、`co_send()`、`co_classify_rx()` 等 | 本次函数操作成功、忽略或出错 |
-| `status` 局部变量 | `co_send()`、`co_classify_rx()` | 暂存检查函数返回值，随后继续判断 |
-| `kind` 输出参数 | `co_classify_rx()` 写入 | 接收帧的类别，例如 `CO_RX_SDO` |
-
-本文件的学习重点是指针参数和调用链：调用方传入 `&ctx`、`&frame`，函数内部用 `ctx->成员`、`frame->成员` 访问原变量；`co_send()` 通过 `ctx->tx` 间接调用已保存的发送函数。阶段 1 只验证纯 C 基础流程，真实 CAN 发送属于后续硬件阶段。
-
----
 
 
 # 解析
 
-## 1：第一个函数
+## 1：检查节点初始化是否有效
 
 ```c
 /**
@@ -88,7 +51,7 @@ static co_status_t co_context_validate(const co_context_t *ctx)
 
 这个函数的作用只有一个：
 
-> **检查节点上下文 `ctx` 是否可以正常使用。**
+> 检查节点上下文 结构体`ctx` 是否可以正常使用。
 
 它不初始化节点，也不发送报文，只负责检查。
 
@@ -117,16 +80,23 @@ static co_status_t co_context_validate(...)
 ```c
 co_status_t
 
-typedef enum {
-    CO_OK = 0, /* 操作成功；分类接口中仅表示分类成功 */
-    CO_IGNORED, /* 帧与本节点无关，正常忽略 */
-    CO_ERR_ARGUMENT, /* 指针或必要回调无效 */
-    CO_ERR_NODE_ID, /* 节点号不在 1~127 内 */
-    CO_ERR_CAN_ID, /* CAN-ID 超过 11 位范围 */
-    CO_ERR_DLC, /* 数据长度不符合当前检查要求 */
-    CO_ERR_FRAME_TYPE, /* 不支持扩展、远程或 CAN FD 帧 */
-    CO_ERR_TX_BUSY, /* 传输层暂忙，调用者决定后续处理 */
-    CO_ERR_TX_FAILED /* 传输层发送失败 */
+typedef enum
+{
+    CO_OK = 0,           /* 操作成功；分类接口中仅表示分类成功 */
+    CO_IGNORED,          /* 帧与本节点无关，正常忽略 */
+    CO_ERR_ARGUMENT,     /* 指针或必要回调无效 */
+    CO_ERR_NODE_ID,      /* 节点号不在 1~127 内 */
+    CO_ERR_CAN_ID,       /* CAN-ID 超过 11 位范围 */
+    CO_ERR_DLC,          /* 数据长度不符合当前检查要求 */
+    CO_ERR_FRAME_TYPE,   /* 不支持扩展、远程或 CAN FD 帧 */
+    CO_ERR_TX_BUSY,      /* 传输层暂忙，调用者决定后续处理 */
+    CO_ERR_TX_FAILED,    /* 传输层发送失败 */
+    CO_ERR_OD_NOT_FOUND, /* 对象字典中没有对应的 Index/Sub-index */
+    CO_ERR_OD_READ_ONLY, /* 对象只读，拒绝写入 */
+    CO_ERR_OD_LENGTH,    /* 对象数据长度不匹配 */
+    CO_ERR_OD_VALUE,     /* 对象值超出允许范围 */
+    CO_ERR_OD_CALLBACK,  /* 对象缺少必要的读写回调 */
+    CO_ERR_OD_STATE      /* 当前 NMT 状态不允许修改对象 */
 } co_status_t;
 ```
 
@@ -354,7 +324,7 @@ ctx->tx
 return CO_ERR_ARGUMENT;
 ```
 
-如果上下文地址为空，或者发送函数为空，就返回参数错误。
+如果上下文地址为空，或者发送函数为空，就返回参数错误，存在NULL。
 
 这里的意思是：
 
@@ -476,17 +446,21 @@ node_id 在 1～127
 
 
 
+
+
+
+
 ### 12. 整个函数可以翻译成一句话
 
-```
-如果节点上下文地址为空，或者没有发送函数，
-    返回参数错误；
-
-如果节点编号不在 1～127，
-    返回节点号错误；
-
-否则，
-    返回检查成功。
+```c
+它只检查三件事：
+ctx 是否为 NULL
+    ↓
+ctx->tx 是否为空
+    ↓
+ctx->node_id 是否在 1~127
+其中：
+node_id：节点编号，范围 1~127
 ```
 
 这个函数后面会被 `co_send()` 调用：
@@ -503,187 +477,13 @@ co_send()
 
 
 
-### 13.上下文节点啥意思
-
-**“上下文”在这里就是：一个 CANopen 节点运行时需要保存的一组信息。**
-
-这个类型定义是：
-
-```c
-typedef struct {
-    uint8_t node_id;
-    co_nmt_state_t state;
-    co_tx_fn tx;
-    void *tx_user;
-} co_context_t;
-```
-
-它规定一个节点上下文包含 4 个成员：
-
-| 成员      | 保存什么                   |
-| --------- | -------------------------- |
-| `node_id` | 本节点编号，例如 `1`       |
-| `state`   | 节点当前 NMT 状态          |
-| `tx`      | 发送函数的地址             |
-| `tx_user` | 发送函数需要的辅助数据地址 |
-
-
-
-------
-
-先定义类型：
-
-```
-co_context_t
-```
-
-这只是规定“节点信息应该有哪些成员”，还没有真正创建节点。
-
-再创建变量：
-
-```
-co_context_t ctx = {0};
-```
-
-此时才真正创建了一个变量 `ctx`，它里面有：
-
-```c
-ctx.node_id
-ctx.state
-ctx.tx
-ctx.tx_user
-```
-
-可以把它想成一个“节点信息盒子”：
-
-```
-ctx
-├── node_id  ：我是几号节点
-├── state    ：我当前是什么 NMT 状态
-├── tx       ：我要调用哪个发送函数
-└── tx_user  ：发送函数要使用什么辅助资源
-```
-
-例如初始化：
-
-```
-co_init(&ctx, 1, fake_tx, &bus);
-```
-
-执行后大致变成：
-
-```
-ctx.node_id  = 1
-ctx.state    = CO_NMT_INITIALIZATION
-ctx.tx       = fake_tx
-ctx.tx_user  = &bus
-```
-
-以后 `co_send()` 接收：
-
-```
-co_send(&ctx, &frame);
-```
-
-它通过 `ctx` 找到：
-
-```
-ctx->tx
-ctx->tx_user
-```
-
-然后调用实际的发送函数fake_tx（）：
-
-```
-fake_tx(&bus, frame);
-```
-
-所以：
-
-```
-co_context_t → 节点上下文的类型
-ctx          → 具体创建出来的节点上下文变量
-can_frame_t  → CAN 报文的类型
-frame        → 具体创建出来的一帧报文变量
-```
-
-最重要的区别是：
-
-```
-ctx   保存“这个节点怎么工作”
-frame 保存“这次要发送什么报文”
-```
-
-因此，`co_context_validate()` 检查的就是这个节点信息盒子是否完整、可用
-
-
-
-当前 PC 测试：
-
-```c
-fake_bus_t bus = {0};
-co_init(&ctx, 1, fake_tx, &bus);
-```
-
-此时：
-
-```
-ctx.tx_user = &bus;
-```
-
-`fake_tx()` 把它当作 `fake_bus_t *` 使用，用来记录测试结果。
-
-以后接入 STM32 时，可以这样：
-
-```
-co_init(&ctx, 1, stm32_can_send, &hcan1);
-```
-
-此时：
-
-```
-ctx.tx_user = &hcan1;
-```
-
-`stm32_can_send()` 内部再把它转换为：
-
-```
-CAN_HandleTypeDef *hcan = user;
-```
-
-然后使用这个句柄提交报文。
-
-不过更推荐以后传入一个 CAN 适配器上下文，而不是直接传裸句柄：
-
-```
-typedef struct {
-    CAN_HandleTypeDef *hcan;
-    /* 以后还可以放发送队列、统计计数等 */
-} can_adapter_t;
-
-can_adapter_t adapter = {
-    .hcan = &hcan1
-};
-
-co_init(&ctx, 1, stm32_can_send, &adapter);
-```
-
-这样 `tx_user` 保存的是：
-
-```
-PC 阶段：&bus
-STM32 阶段：&adapter，里面再保存 &hcan1
-```
-
-所以结论是：
-
-> `ctx.tx_user` 保存的是发送函数需要的辅助对象地址；STM32 简单实现可以填 `&hcan1`，完整实现更适合填 CAN 适配器上下文地址。
+> 
 
 
 
 
 
-## 2：第二个函数
+## 2：初始化一个节点
 
 ```c
 co_status_t co_init(co_context_t *ctx, uint8_t node_id,
@@ -703,9 +503,7 @@ co_status_t co_init(co_context_t *ctx, uint8_t node_id,
 }
 ```
 
-这个函数的整体作用是：
-
-> **把一个节点上下文变量初始化好。**
+这个函数的整体作用是：把一个节点上下文变量初始化好。
 
 也就是给它填写：
 
@@ -1134,169 +932,15 @@ CAN 总线已确认
 
 
 
-### 11.为什么它叫做发送函数所需的辅助数据地址  
-
-这是因为 **`tx_user` 的设计故意不绑定 CAN**。
-
-第四个参数在接口里写成：
-
-```
-void *tx_user
-```
-
-它的名字不是：
-
-```
-CAN_HandleTypeDef *can_handle
-```
-
-因为协议核心不应该知道 STM32 HAL，也不应该规定发送函数一定使用 CAN 句柄。
-
-它只表达一个通用意思：
-
-> **把发送函数工作时需要的外部对象地址保存下来。**
-
-在不同环境中，这个对象可以不同：
-
-```
-PC 测试：
-tx_user = &bus
-```
-
-这里发送函数需要 `bus` 来记录测试结果。
-
-```
-简单 STM32 实现：
-tx_user = &hcan1
-```
-
-这里发送函数需要 `hcan1` 这个 CAN 外设句柄。
-
-```
-完整 STM32 实现：
-tx_user = &adapter
-```
-
-这里 `adapter` 可能包含：
-
-```
-typedef struct {
-    CAN_HandleTypeDef *hcan;
-    /* 发送队列 */
-    /* 发送统计 */
-} can_adapter_t;
-```
-
-所以：
-
-```
-co_init(&ctx, 1, stm32_can_send, &hcan1);
-```
-
-第四个参数虽然实际是 CAN1 句柄地址，但从 `co_init()` 的角度看，它只是：
-
-```
-发送函数以后需要使用的一个外部对象地址
-```
-
-进入发送函数后，才由具体函数决定如何解释这个地址：
-
-```
-co_status_t stm32_can_send(void *user,
-                           const can_frame_t *frame)
-{
-    CAN_HandleTypeDef *hcan = user;
-
-    /* 使用 hcan 提交 frame */
-}
-```
-
-这里的关系是：
-
-```
-co_init() 只负责保存地址
-    ↓
-ctx.tx_user = &hcan1
-    ↓
-co_send() 把这个地址传给发送函数
-    ↓
-stm32_can_send() 把 user 当作 CAN_HandleTypeDef * 使用
-```
-
-因此“辅助数据地址”是**接口层的通用叫法**；“CAN 外设句柄”是**STM32 具体实现中的一种实际内容**。
-
-可以这样记：
-
-```
-tx_user 的类型：void *
-tx_user 的用途：由具体发送函数决定
-当前 PC：指向 fake_bus_t
-以后 STM32：可以指向 hcan1，也可以指向 CAN 适配器结构体
-```
-
-它叫辅助数据，是为了让 `co_core.c` 保持纯 C、与 HAL 解耦。
 
 
 
-### 12.那应该如何理解第四个参数
 
-可以这样理解，但要稍微准确一点：
-
-> 第三个参数是“调用哪个发送函数”；第四个参数是“这个发送函数依靠什么发送资源”。
-
-例如：
-
-```c
-co_init(&ctx, 1, stm32_can_send, &hcan1);
-```
-
-对应：
-
-```
-stm32_can_send → 具体执行发送工作的函数
-&hcan1         → 让这个函数能够操作 CAN1 的句柄
-```
-
-不过 `hcan1` 本身不是 CAN 外设硬件，而是 STM32 HAL 中描述 CAN1 外设的软件句柄。它里面保存了操作 CAN1 所需的信息。
-
-发送函数内部：
-
-```
-co_status_t stm32_can_send(void *user,
-                           const can_frame_t *frame)
-{
-    CAN_HandleTypeDef *hcan = user;
-
-    /* 使用 hcan 操作 CAN 外设，提交 frame */
-}
-```
-
-所以第四个参数可以记成：
-
-```c
-发送函数需要使用的发送资源对应的地址，可以是can，can具备发送的能力，所以叫发送资源，我们传入的是can1的句柄，也就是其地址
-//发送函数通过这个地址找到 CAN1 句柄，再操作 CAN1 外设发送报文。
-```
-
-这个资源在当前项目中可能是：
-
-```
-PC 测试：        &bus
-STM32 简单实现： &hcan1
-STM32 完整实现： &adapter
-```
-
-因此你说“一个具备发送能力的外设”方向是对的，但更准确的说法是：
-
-> 第四个参数不是直接传入外设硬件，而是传入一个能让发送函数访问发送外设或发送队列的对象地址。
-
-
-
-### 13.句柄的介绍
+### 11.句柄的介绍
 
 可以。先记住一句话：
 
-> **句柄不是 CAN 外设本身，而是软件中描述和管理 CAN 外设的一个结构体对象。**
+> 句柄不是 CAN 外设本身，而是软件中描述和管理 CAN 外设的一个结构体对象。
 
 
 
@@ -1513,7 +1157,7 @@ co_status_t stm32_can_send(void *user,
 
 
 
-## 3：第三个函数
+## 3：检查一帧 CAN 报文
 
 ```c
 co_status_t co_frame_validate(const can_frame_t *frame)
@@ -1621,7 +1265,7 @@ frame->is_fd
 frame.id
 ```
 
-因为这里的 `frame` 是指针。
+因为这里的 `frame` 是指针，应该用->
 
 ------
 
@@ -1961,7 +1605,7 @@ result == CO_ERR_DLC
 
 
 
-## 4：第四个函数
+## 4：检查节点和can报文后发送
 
 ```c
 co_status_t co_send(const co_context_t *ctx, const can_frame_t *frame)
@@ -2022,6 +1666,7 @@ const co_context_t *ctx
 ```c
 co_context_t ctx = {0};
 co_send(&ctx, &frame);
+传入&ctx的地址可以让co_send()函数访问到其内部的结构体子变量，ctx->tx = tx 和 ctx->tx_user = tx_user
 ```
 
 第二个参数：
@@ -2378,54 +2023,11 @@ CO_ERR_TX_BUSY
 
 
 
-### 9. 函数的完整流程
-
-```
-调用 co_send(&ctx, &frame)
-    ↓
-ctx 指向节点上下文
-frame 指向待发送报文
-    ↓
-检查 ctx
-    ↓
-失败：立即返回错误
-    ↓
-检查 frame
-    ↓
-失败：立即返回错误
-    ↓
-从 ctx->tx 找到发送函数
-    ↓
-从 ctx->tx_user 找到辅助数据
-    ↓
-调用发送函数
-    ↓
-返回发送函数的结果
-```
-
-在 PC 测试中：
-
-```
-co_send(&ctx, &frame)
-    ↓
-fake_tx(&bus, &frame)
-```
-
-以后 STM32 中：
-
-```
-co_send(&ctx, &frame)
-    ↓
-stm32_can_send(&adapter, &frame)
-```
-
-所以 `co_send()` 的核心不是自己实现具体 CAN 发送，而是：
-
-> **统一完成检查，并根据节点上下文调用正确的发送函数。**
 
 
 
-## 5:最后一个函数
+
+## 5:接收帧分类函数
 
 ```c
 co_status_t co_classify_rx(const co_context_t *ctx, const can_frame_t *frame,
@@ -2469,15 +2071,18 @@ co_status_t co_classify_rx(const co_context_t *ctx, const can_frame_t *frame,
 
 它不会从硬件中接收报文。调用它之前，报文已经放进了 `can_frame_t` 变量中。
 
+```c
+当前 PC 测试：
+手动构造 can_frame_t
+        ↓
+模拟“已经收到一帧报文”
+        ↓
+co_classify_rx(&ctx, &frame, &kind)
+        ↓
+判断 NMT、SDO、RPDO1 或无关帧
+```
 
 
-好，这次只学习 **`co_classify_rx()`：接收帧分类函数**。
-
-它回答两个问题：
-
-> **这帧是不是需要本节点处理？如果是，属于 NMT、SDO 还是 RPDO1？**
-
-它不会从硬件中接收报文。调用它之前，报文已经放进了 `can_frame_t` 变量中。
 
 
 
@@ -2611,7 +2216,7 @@ rx_kind = CO_RX_NONE;
 
 ### 5：检查节点上下文**
 
-```
+```c
 status = co_context_validate(ctx);
 
 if (status != CO_OK) {
@@ -2635,7 +2240,7 @@ ctx 是否为空？
 
 ### 6：检查报文基本格式**
 
-```
+```c
 status = co_frame_validate(frame);
 
 if (status != CO_OK) {
@@ -2658,7 +2263,7 @@ DLC 范围
 
 
 
-### 7：第一种情况：NMT 报文**
+### 7：第一个if分支：判断是否为NMT 报文
 
 ```
 if (frame->id == CO_COB_NMT) {
@@ -2742,14 +2347,14 @@ DATA：  01 01
 rx_kind = CO_RX_NMT;
 ```
 
-这里只识别 NMT，不检查或执行 `data[0]` 中的命令，不改变节点状态。
+这里只识别 是否为NMT帧，不检查或执行 `data[0]` 中的命令，不改变节点状态。
 
 
 
-### 8：第二种情况：本节点的 SDO 请求**
+### 8：第二个if分支：本节点的 SDO 请求
 
 ```c
-} else if (frame->id == CO_COB_SDO_RX_BASE + ctx->node_id) {
+ else if (frame->id == CO_COB_SDO_RX_BASE + ctx->node_id) {
     *kind = CO_RX_SDO;
 }
 ```
@@ -2772,10 +2377,10 @@ CO_RX_SDO
 
 
 
-### 9：第三种情况：本节点的 RPDO1**
+### 9：第三个if分支：本节点的 RPDO1请求
 
-```
-} else if (frame->id == CO_COB_RPDO1_BASE + ctx->node_id) {
+```   
+ else if (frame->id == CO_COB_RPDO1_BASE + ctx->node_id) {
     *kind = CO_RX_RPDO1;
 }
 ```
@@ -2798,10 +2403,10 @@ SDO 的 DLC=8、RPDO1 的 DLC=1 和数据内容限制，留给后续对应模块
 
 
 
-### 10：其他报文：忽略**
+### 10：其他报文：忽略
 
 ```
-} else {
+else {
     return CO_IGNORED;
 }
 ```
@@ -2824,7 +2429,7 @@ rx_kind = CO_RX_NONE
 
 
 
-### 11：分类成功，返回 `CO_OK`**
+### 11：分类成功，返回 `CO_OK`
 
 ```
 return CO_OK;
@@ -2853,9 +2458,9 @@ CO_RX_SDO → 具体类别是 SDO 请求
     ↓
 清除旧分类
     ↓
-检查节点上下文
+检查节点上下文是否初始化成功
     ↓
-检查报文基本格式
+检查报文can基本格式是否满足项目需求
     ↓
 匹配 NMT / 本节点 SDO / 本节点 RPDO1
     ↓

@@ -14,11 +14,13 @@
 
 项目骨架已建立，硬件基线为野火挑战者 STM32F429IGT6 开发板；CAN 引脚和低压 I/O 方案已完成阶段 0 冻结。
 
-阶段 1 的纯 C 帧抽象、发送回调和节点地址分类已完成，PC 测试 4/4 通过。对象字典及各协议服务尚未实现，未进行本阶段硬件验证。
+阶段 1 基础层、阶段 2 通用对象字典及 36 条实际对象、阶段 3 NMT/Boot-up 已实现；PC 测试 12/12 通过。DI/DO/AI、Heartbeat 周期、固定 PDO 参数已绑定；Heartbeat Producer、SDO、PDO 服务和硬件适配仍待后续阶段实现。
+
+提供 [项目基线 EDS v1.1](eds/CANopen_IO_Node.eds) 和 [对象表与复核记录](docs/阶段2对象表与规范复核.md)。PDO 的 COB-ID、传输类型、映射固定只读；抑制时间固定0，事件周期默认0且可在 Pre-operational 修改。AI 使用 INTEGER16 表示原始ADC乘8（0～32760）；6423控制模拟量变化触发。Vendor-ID=0 为未分配的开发占位。阶段2对象模型原文核验与第三方离线EDS导入已完成；实机互通尚待完成，不宣称完整 CiA 401 实现或认证。
 
 ## PC 构建与测试
 
-需要 C11 编译器、CMake 3.20+ 和 Ninja，在项目根目录执行：
+需要 C11 编译器、CMake 3.20+、Ninja 和 Python 3（EDS 测试只用标准库），在项目根目录执行：
 
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -26,7 +28,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-接口说明见 `canopen/README.md`，测试证据见 `docs/阶段1测试记录.md`。
+接口说明见 `canopen/README.md`，测试证据见 `docs/阶段1测试记录.md`、`docs/阶段2测试记录.md`、`docs/阶段3测试记录.md`。
 
 ## GitHub 提交流程
 
@@ -60,10 +62,12 @@ git status --short
 git add <明确路径>
 git diff --cached --stat
 git commit -m "Describe the change"
-git push origin main
+git push
 ```
 
 
 
 
 
+
+当前设计与后续约束见 [阶段2冻结基线](docs/阶段2冻结基线-v1.1.md)。

@@ -1,0 +1,487 @@
+; Project EDS v1.1 baseline. Development identity; no conformance certification.
+; PDO mapping/COB-ID/type are fixed. Event timer writes require Pre-operational; inhibit time is fixed at zero.
+; TPDO COB-ID bit30=1: RTR is not supported. Actual CAN-ID excludes flags.
+[FileInfo]
+FileName=CANopen_IO_Node.eds
+FileVersion=1
+FileRevision=1
+EDSVersion=4.0
+Description=STM32 4DI 4DO 2AI development node
+CreationTime=12:00PM
+CreationDate=09-19-2026
+CreatedBy=CANopen IO Node project
+ModificationTime=12:00PM
+ModificationDate=09-23-2026
+ModifiedBy=CANopen IO Node project
+
+[DeviceInfo]
+VendorName=Unassigned development vendor
+VendorNumber=0
+ProductName=CANopen IO Node
+ProductNumber=1
+RevisionNumber=0x00010000
+OrderCode=DEVELOPMENT
+BaudRate_10=0
+BaudRate_20=0
+BaudRate_50=0
+BaudRate_125=0
+BaudRate_250=0
+BaudRate_500=1
+BaudRate_800=0
+BaudRate_1000=0
+SimpleBootUpMaster=0
+SimpleBootUpSlave=1
+Granularity=0
+DynamicChannelsSupported=0
+GroupMessaging=0
+NrOfRXPDO=1
+NrOfTXPDO=2
+LSS_Supported=0
+
+[DummyUsage]
+Dummy0001=0
+Dummy0002=0
+Dummy0003=0
+Dummy0004=0
+Dummy0005=0
+Dummy0006=0
+Dummy0007=0
+
+[Comments]
+Lines=3
+Line1=Development identity only; replace before production.
+Line2=Fixed PDO mapping; TPDO event timer writable only in Pre-operational; inhibit fixed at zero.
+Line3=AI is positive INTEGER16: 12-bit ADC raw value multiplied by 8 (0..32760).
+
+[MandatoryObjects]
+SupportedObjects=3
+1=0x1000
+2=0x1001
+3=0x1018
+
+[OptionalObjects]
+SupportedObjects=11
+1=0x1017
+2=0x1400
+3=0x1600
+4=0x1800
+5=0x1801
+6=0x1A00
+7=0x1A01
+8=0x6000
+9=0x6200
+10=0x6401
+11=0x6423
+
+[ManufacturerObjects]
+SupportedObjects=0
+
+[1000]
+ParameterName=Device type
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=0x00070191
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1001]
+ParameterName=Error register
+ObjectType=7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+LowLimit=0
+HighLimit=255
+PDOMapping=0
+
+[1017]
+ParameterName=Producer heartbeat time
+ObjectType=7
+DataType=0x0006
+AccessType=rw
+DefaultValue=1000
+LowLimit=0
+HighLimit=65535
+PDOMapping=0
+
+[1018]
+ParameterName=Object 1018
+ObjectType=9
+SubNumber=5
+
+[1018sub0]
+ParameterName=Identity count
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=4
+LowLimit=0
+HighLimit=4
+PDOMapping=0
+
+[1018sub1]
+ParameterName=Vendor ID DEVELOPMENT ONLY
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=0
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1018sub2]
+ParameterName=Product code
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=1
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1018sub3]
+ParameterName=Revision
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=65536
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1018sub4]
+ParameterName=Serial
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=0
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1400]
+ParameterName=Object 1400
+ObjectType=9
+SubNumber=3
+
+[1400sub0]
+ParameterName=Highest sub-index
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=2
+LowLimit=0
+HighLimit=2
+PDOMapping=0
+
+[1400sub1]
+ParameterName=COB-ID
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=$NODEID+0x200
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1400sub2]
+ParameterName=Transmission type
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=255
+LowLimit=0
+HighLimit=255
+PDOMapping=0
+
+[1600]
+ParameterName=Object 1600
+ObjectType=9
+SubNumber=2
+
+[1600sub0]
+ParameterName=Mapping count
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=1
+LowLimit=0
+HighLimit=1
+PDOMapping=0
+
+[1600sub1]
+ParameterName=Fixed mapping 1
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=0x62000108
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1800]
+ParameterName=Object 1800
+ObjectType=9
+SubNumber=5
+
+[1800sub0]
+ParameterName=Highest sub-index
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=5
+LowLimit=0
+HighLimit=5
+PDOMapping=0
+
+[1800sub1]
+ParameterName=COB-ID
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=$NODEID+0x40000180
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1800sub2]
+ParameterName=Transmission type
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=255
+LowLimit=0
+HighLimit=255
+PDOMapping=0
+
+[1800sub3]
+ParameterName=Inhibit time 100us FIXED ZERO
+ObjectType=7
+DataType=0x0006
+AccessType=const
+DefaultValue=0
+LowLimit=0
+HighLimit=65535
+PDOMapping=0
+
+[1800sub5]
+ParameterName=Event timer ms PREOP ONLY
+ObjectType=7
+DataType=0x0006
+AccessType=rw
+DefaultValue=0
+LowLimit=0
+HighLimit=65535
+PDOMapping=0
+
+[1801]
+ParameterName=Object 1801
+ObjectType=9
+SubNumber=5
+
+[1801sub0]
+ParameterName=Highest sub-index
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=5
+LowLimit=0
+HighLimit=5
+PDOMapping=0
+
+[1801sub1]
+ParameterName=COB-ID
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=$NODEID+0x40000280
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1801sub2]
+ParameterName=Transmission type
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=255
+LowLimit=0
+HighLimit=255
+PDOMapping=0
+
+[1801sub3]
+ParameterName=Inhibit time 100us FIXED ZERO
+ObjectType=7
+DataType=0x0006
+AccessType=const
+DefaultValue=0
+LowLimit=0
+HighLimit=65535
+PDOMapping=0
+
+[1801sub5]
+ParameterName=Event timer ms PREOP ONLY
+ObjectType=7
+DataType=0x0006
+AccessType=rw
+DefaultValue=0
+LowLimit=0
+HighLimit=65535
+PDOMapping=0
+
+[1A00]
+ParameterName=Object 1A00
+ObjectType=9
+SubNumber=2
+
+[1A00sub0]
+ParameterName=Mapping count
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=1
+LowLimit=0
+HighLimit=1
+PDOMapping=0
+
+[1A00sub1]
+ParameterName=Fixed mapping 1
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=0x60000108
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1A01]
+ParameterName=Object 1A01
+ObjectType=9
+SubNumber=3
+
+[1A01sub0]
+ParameterName=Mapping count
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=2
+LowLimit=0
+HighLimit=2
+PDOMapping=0
+
+[1A01sub1]
+ParameterName=Fixed mapping 1
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=0x64010110
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[1A01sub2]
+ParameterName=Fixed mapping 2
+ObjectType=7
+DataType=0x0007
+AccessType=const
+DefaultValue=0x64010210
+LowLimit=0
+HighLimit=4294967295
+PDOMapping=0
+
+[6000]
+ParameterName=Object 6000
+ObjectType=8
+SubNumber=2
+
+[6000sub0]
+ParameterName=Number of entries
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=1
+LowLimit=0
+HighLimit=1
+PDOMapping=0
+
+[6000sub1]
+ParameterName=Digital inputs 1
+ObjectType=7
+DataType=0x0005
+AccessType=ro
+DefaultValue=0
+LowLimit=0
+HighLimit=15
+PDOMapping=1
+
+[6200]
+ParameterName=Object 6200
+ObjectType=8
+SubNumber=2
+
+[6200sub0]
+ParameterName=Number of entries
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=1
+LowLimit=0
+HighLimit=1
+PDOMapping=0
+
+[6200sub1]
+ParameterName=Digital outputs 1
+ObjectType=7
+DataType=0x0005
+AccessType=rw
+DefaultValue=0
+LowLimit=0
+HighLimit=15
+PDOMapping=1
+
+[6401]
+ParameterName=Object 6401
+ObjectType=8
+SubNumber=3
+
+[6401sub0]
+ParameterName=Number of entries
+ObjectType=7
+DataType=0x0005
+AccessType=const
+DefaultValue=2
+LowLimit=0
+HighLimit=2
+PDOMapping=0
+
+[6401sub1]
+ParameterName=Analog inputs 1
+ObjectType=7
+DataType=0x0003
+AccessType=ro
+DefaultValue=0
+LowLimit=0
+HighLimit=32760
+PDOMapping=1
+
+[6401sub2]
+ParameterName=Analog inputs 2
+ObjectType=7
+DataType=0x0003
+AccessType=ro
+DefaultValue=0
+LowLimit=0
+HighLimit=32760
+PDOMapping=1
+
+[6423]
+ParameterName=Analog input global interrupt enable
+ObjectType=7
+DataType=0x0001
+AccessType=rw
+DefaultValue=0
+LowLimit=0
+HighLimit=1
+PDOMapping=0

@@ -1,161 +1,5 @@
 # 阶段 1：纯 C 基础类型与 CAN 帧抽象
 
-## 一、总览：这份笔记在学什么
-
-这份笔记当前对应 `co_types.h`：先约定“一帧报文怎么保存、一个节点需要哪些信息、发送函数采用什么接口、处理结果怎么表示”，再由 `co_core.c` 使用这些类型完成初始化、校验、发送和接收分类。
-
-**头文件里的类型定义本身不会发送报文，也不会执行 NMT 状态切换。当前先在 PC 上验证纯 C 基础层，后续再接入 STM32 CAN 硬件。**
-
-```mermaid
-flowchart TB
-    TYPES["co_types.h<br/>定义纯 C 基础类型和常量"]
-    LIMIT["宏定义<br/>CAN-ID、数据长度、节点号范围及接收 ID 基值"]
-    FRAME["can_frame_t：一帧报文<br/>id / dlc / data / 帧类型"]
-    CTX["co_context_t：一个节点的信息<br/>node_id / state / tx / tx_user"]
-    TX["co_tx_fn：发送函数指针类型<br/>规定发送函数的参数和返回类型"]
-    STATUS["co_status_t<br/>本次操作的结果"]
-    NMT["co_nmt_state_t<br/>节点当前的工作状态"]
-    KIND["co_rx_kind_t<br/>收到报文的类别"]
-    TYPES --> LIMIT
-    TYPES --> FRAME
-    TYPES --> CTX
-    TYPES --> STATUS
-    TYPES --> KIND
-    CTX -->|"state 成员使用"| NMT
-    CTX -->|"tx 成员使用"| TX
-    TX -->|"frame 参数指向"| FRAME
-    TX -->|"返回"| STATUS
-```
-
-| 内容 | 回答什么问题 | 本项目例子 |
-|---|---|---|
-| 宏定义 | 范围和固定参数是多少？ | CAN-ID 最大 0x7FF；数据最多 8 字节；Node-ID 为 1～127 |
-| `co_status_t` | 这次函数操作结果怎么样？ | CO_OK、CO_ERR_DLC、CO_ERR_TX_BUSY |
-| `co_nmt_state_t` | 节点当前处于什么状态？ | Initialization、Pre-operational、Operational、Stopped |
-| `can_frame_t` | 要发送或刚收到的报文是什么？ | id=0x701，dlc=1，data[0]=0x05 |
-| `co_tx_fn` | 可以接入什么样的发送函数？ | 两个参数 user、frame；返回 co_status_t |
-| `co_context_t` | 一个节点需要保存哪些信息？ | 节点号、NMT 状态、发送函数地址、发送辅助数据地址 |
-| `co_rx_kind_t` | 收到的帧属于哪种服务？ | NMT、SDO、RPDO1 或未匹配 |
-
-### 1. 先分清类型、变量、成员和取值
-
-```c
-co_status_t result = CO_OK;
-/* 类型名       变量名   枚举常量 */
-
-co_context_t ctx = {0};             /* 创建节点变量；正式使用前还需初始化 */
-ctx.node_id = 1;                    /* 访问 ctx 中的 node_id 成员 */
-ctx.state = CO_NMT_INITIALIZATION;  /* 访问 ctx 中的 state 成员 */
-```
-
-`typedef enum` 定义枚举类型，给一组整数起名字；`typedef struct` 定义结构体类型，把多个成员组合起来。`can_frame_t` 是结构体类型，不是枚举。结构体变量访问成员用 `.`，结构体指针访问成员用 `->`。
-
-
-
-### 2. 函数指针：先规定接口，再选择发送函数，最后调用
-
-```c
-/* ① 定义类型：不是创建变量，也不是执行发送 */
-typedef co_status_t (*co_tx_fn)(void *user, const can_frame_t *frame);
-
-/* ② 假设后续硬件适配层提供了这个函数，此处只是声明 */
-co_status_t stm32_can_send(void *user, const can_frame_t *frame);
-
-/* ③ 创建函数指针变量，并保存封装函数的地址 */
-co_tx_fn tx = stm32_can_send;
-
-/* ④ 调用 tx，即执行 stm32_can_send，取得本次提交结果 */
-co_status_t result = tx(&hcan1, &frame);
-```
-
-上面是后续 STM32 接入的调用示意，依赖已定义的 CAN1 句柄、报文变量和发送函数实现，不能直接当作当前 PC 工程代码运行。
-
-| 名字或参数 | 作用 |
-|---|---|
-| `co_tx_fn` | 函数指针类型 |
-| `tx` | 保存函数地址的变量；赋值不执行函数，加括号调用才执行 |
-| `stm32_can_send` | 以后封装的实际发送函数，此名称为示例，当前尚未实现 |
-| `void *user` | 本机发送所需的辅助数据地址，例如 CAN1 句柄地址；不是主机地址 |
-| `const can_frame_t *frame` | 待发送帧的地址；通过它读取 CAN-ID、长度和数据，不能通过它修改原帧 |
-| `co_status_t` 返回值 | 本次提交结果；不是节点的 NMT 状态 |
-
-在节点上下文中，`tx` 保存“调用哪个函数”，`tx_user` 保存“调用时传给 user 的辅助地址”。PC 测试绑定 `fake_tx`，以后 STM32 绑定硬件发送函数，协议核心因此不必直接依赖 HAL。
-
-
-
-### 3. 谁发送给谁：这里的发送函数属于 STM32 节点这一侧
-
-本项目中，电脑 CAN 上位机作为主站工具，STM32 为 Node-ID=1 的从节点。CAN 总线本身支持多主仲裁，主从称呼是这里的应用角色。
-
-```mermaid
-flowchart LR
-    HOST["主站：电脑 CAN 上位机"]
-    USB["USB-CAN 分析仪"]
-    HW["STM32 CAN 外设及收发器"]
-    CORE["STM32 协议代码"]
-    SEND["调用 tx<br/>执行封装的发送函数"]
-    HOST -->|"SDO 请求 0x601"| USB
-    USB -->|"CAN 总线"| HW
-    HW -->|"接收报文"| CORE
-    CORE -->|"准备 SDO 响应 0x581"| SEND
-    SEND -->|"提交到本机发送环节"| HW
-    HW -->|"CAN 总线"| USB
-    USB -->|"响应送到上位机"| HOST
-```
-
-STM32 主动发送 Heartbeat、TPDO，也使用这一侧的发送接口。上位机发送请求使用上位机软件自己的发送功能。
-
-**目前 PC 测试中的 `fake_tx()` 只记录调用次数、复制报文并返回预设结果，不会向真实 CAN 总线或上位机发报文。上图是后续协议服务和硬件接入后的通信流程。**
-
-
-
-### 4. 三种“状态”和三个发送完成层次，分别记忆
-
-| 容易混淆的内容 | 例子 | 实际含义 |
-|---|---|---|
-| 函数操作结果 `co_status_t` | CO_OK | 本次操作成功；具体含义看调用的是哪个接口 |
-| 节点工作状态 `co_nmt_state_t` | CO_NMT_OPERATIONAL = 5 | 节点处于运行状态，可作为心跳内容 |
-| 接收类别 `co_rx_kind_t` | CO_RX_SDO | 识别到本节点的 SDO 请求，尚不表示已执行 |
-
-| 发送过程中的观察结果 | 能证明什么 |
-|---|---|
-| 发送回调返回 CO_OK | 本机接受提交；可能仅进入软件队列或 CAN 硬件邮箱 |
-| CAN 外设报告正常发送完成 | 总线发送成功；正常总线模式下 ACK 表示至少一个其他节点正确接收 |
-| 上位机显示收到的帧 | 报文到达上位机软件；是否完成业务处理还需应用反馈 |
-
-软件发送队列是 RAM 中的待发送列表；CAN 发送邮箱是 CAN 外设中的待发送硬件位置。ACK 不标明接收节点身份，也不证明上位机业务处理完成。TPDO 和 Heartbeat 没有逐帧的应用层确认回复。
-
-
-
-### 5. 复习时先核对这些边界
-
-- 标准帧说的是 **11 位 CAN-ID**；经典 CAN 数据载荷为 **0～8 字节**，不是整个 CAN 帧只有 8 字节。
-- `data[8]` 预留容量，`dlc` 决定本帧有效字节数；DLC=0 时没有有效载荷。
-- Node-ID=1 是节点编号；0x201、0x601 等是该节点使用的不同 CAN-ID。
-- 阶段 1 先定义接收用的 NMT、RPDO1、SDO 请求 ID；TPDO1=0x181、TPDO2=0x281 的设计仍然有效，对应宏尚未加入。
-- 数值说明：`uint16_t` 能完整保存 0x800，不会因此截断；11 位无符号位域才装不下 0x800。 `uint32_t id` 提供更宽的输入保存范围，是否越界仍需显式比较。
-- `UINT32_C()` 用于构造适合 `uint_least32_t` 的无符号整数常量，在本项目平台上可按 32 位无符号常量理解；它本身不做范围检查。
-- 本文件中的结构体没有声明 `struct can_frame` 标签，因此当前使用 `can_frame_t` 声明变量；若想写 `struct can_frame`，必须先定义这个标签。
-- 当前完成的是基础帧校验、发送接口和接收分类；NMT 状态机、SDO 响应、PDO 数据处理以及真实硬件发送属于后续阶段。
-
-阅读顺序：`co_types.h`（数据和类型）→ `co_core.h`（接口约定）→ `co_core.c`（具体实现）→ `test_co_core.c`（验证行为）。
-
----
-
-### 6.现阶段学习
-
-现在先理解**每个类型用来保存什么、解决什么问题**就够了，不必一次记住所有语法。
-
-后面看实际调用时，我们拿一帧报文走完整个过程：
-
-```
-创建节点 → 准备 CAN 帧 → 校验 → 调用发送函数 → 检查返回结果
-```
-
-你就能看到 `can_frame_t`、`co_context_t`、`co_tx_fn` 和 `co_status_t` 怎么配合。
-
-接下来学习 `co_core.h`，先认识有哪些接口；再到 `co_core.c` 和测试里看它们实际怎么用
-
 
 
 
@@ -180,7 +24,7 @@ STM32 主动发送 Heartbeat、TPDO，也使用这一侧的发送接口。上位
 #### 1：CAN-ID 的最大值
 
 ```c
-#define CO_CAN_ID_MAX UINT32_C(0x7FF)
+#define       CO_CAN_ID_MAX        UINT32_C(0x7FF)
 先拆成三部分：
 #define         // 定义宏
 CO_CAN_ID_MAX    // 宏名称：CAN-ID 的最大值
@@ -216,7 +60,7 @@ if (id > CO_CAN_ID_MAX) { 			  // 拿 0x800 和 0x7FF 比
 如果反过来，你用 11 位（或更小）的变量来装：
 
 ```c
-uint16_t id; 							 // 或者只用 11 位位域
+uint16_t id; 							 // 只用 11 位位域
 id = 0x800;  							 // 0x800 是 1000 0000 0000，11 位装不下
 									     // 结果：数据被截断，id 变成了 0x000
 if (id > 0x7FF) { 
@@ -226,9 +70,9 @@ if (id > 0x7FF) {
 
 1：UINT32_C() 本身不校验数据，它只是个“类型声明工具”，保证 0x7FF 是个 32 位数。
 
-2：**真正干活的是 `uint32_t id` 这个 32 位变量**。因为它够宽，所以即使有人传了非法的 `0x800`、`0x900`，它也能原封不动地存下来，不会丢失信息
+2：真正干活的是 `uint32_t id` 这个 32 位变量。因为它够宽，所以即使有人传了非法的 `0x800`、`0x900`，它也能原封不动地存下来，不会丢失信息
 
-3：**最后通过和 `CO_CAN_ID_MAX`（0x7FF）比较**，就能轻松地发现“哦，这个数超范围了”，从而把非法 ID 拒之门外。
+3：最后通过和 `CO_CAN_ID_MAX`（0x7FF）比较，就能轻松地发现“哦，这个数超范围了”，从而把非法 ID 拒之门外。
 
 一句话概括：用大号容器（32位）装小号数据（11位ID），是为了保留完整的原始值，方便跟上限值（0x7FF）做对比，防止非法值因为“装不下”而被截断、伪装成合法值混进来。
 
@@ -237,16 +81,16 @@ if (id > 0x7FF) {
 #### 2：CAN 数据长度上限
 
 ```c
-#define CO_CAN_DATA_MAX 8u
+#define CO_CAN_DATA_MAX     8u
 ```
 
 表示：
 
 > 经典 CAN 一帧最多携带 8 个数据字节。
 
-`8u` 中的 `u` 表示 **unsigned，无符号整数常量**，数值仍然是 8。
+`8u` 中的 `u` 表示 unsigned，无符号整数常量，数值仍然是 8。
 
-它**不是“8 位”的意思**。
+它不是“8 位”的意思。
 
 后面的：
 
@@ -262,7 +106,7 @@ uint8_t data[8];
 
 这是一个包含 8 个元素的数组，每个元素 1 字节。
 
-注意，**最多能放 8 字节，不代表每帧都必须发送 8 字节**：
+注意，最多能放 8 字节，不代表每帧都必须发送 8 字节：
 
 ```c
 RPDO1：DLC = 1
@@ -335,9 +179,9 @@ DATA   = 01 01
 
 如果希望所有节点进入 Operational：
 
-```
+```c
 CAN-ID = 0x000
-DATA   = 01 00
+DATA   = 01 00		//data[0]表命令，data[1]表示节点id
 ```
 
 所以接收 NMT 时，需要先识别 `CAN-ID=0x000`，再检查 `data[1]` 是否为本节点或广播。
@@ -480,43 +324,32 @@ TPDO2：0x280 + 1 = 0x281，节点 → 主站
 
 
 
-## 2：第一个枚举
+## 2：统一返回状态类型enum
 
 ```c
-typedef enum {
-    CO_OK = 0, /* 操作成功；分类接口中仅表示分类成功 */
-    CO_IGNORED, /* 帧与本节点无关，正常忽略 */
-    CO_ERR_ARGUMENT, /* 指针或必要回调无效 */
-    CO_ERR_NODE_ID, /* 节点号不在 1~127 内 */
-    CO_ERR_CAN_ID, /* CAN-ID 超过 11 位范围 */
-    CO_ERR_DLC, /* 数据长度不符合当前检查要求 */
-    CO_ERR_FRAME_TYPE, /* 不支持扩展、远程或 CAN FD 帧 */
-    CO_ERR_TX_BUSY, /* 传输层暂忙，调用者决定后续处理 */
-    CO_ERR_TX_FAILED /* 传输层发送失败 */
+typedef enum
+{
+    CO_OK = 0,           /* 我处理了，而且成功 */
+    CO_IGNORED,          /*不是错误，而是“这帧不是我的，我不处理 */
+    CO_ERR_ARGUMENT,     /* 指针或必要回调无效，比如传进来的指针是 NULL */
+    CO_ERR_NODE_ID,      /* 节点号不在 1~127 内 */
+    CO_ERR_CAN_ID,       /* CAN-ID 超过 11 位范围 */
+    CO_ERR_DLC,          /* CAN 帧数据长度，超出8字节 */
+    CO_ERR_FRAME_TYPE,   /* 不支持扩展、远程或 CAN FD 帧 */
+    CO_ERR_TX_BUSY,      /* 传输层暂忙，调用者决定后续处理 */
+    CO_ERR_TX_FAILED,    /* 传输层发送失败 */
+        
+    /*对象字典错误*/
+    CO_ERR_OD_NOT_FOUND, /* 对象字典中没有对应的 Index/Sub-index */
+    CO_ERR_OD_READ_ONLY, /* 对象只读，拒绝写入 */
+    CO_ERR_OD_LENGTH,    /* 对象数据长度不匹配，例如uint16_t，应该传2字节，实际填入形参4Byte */
+    CO_ERR_OD_VALUE,     /* 对象值超出允许范围，比如数字输出窗口为4bit，输出数值范围为0~15 */
+    CO_ERR_OD_CALLBACK,  /* 对象需要一个回调函数，但这个回调没有配置，也就是你没传递函数指针进去 */
+    CO_ERR_OD_STATE      /* 当前 NMT 状态不允许修改对象 ，不同状态下，对象的访问权限可能不同 ，预操作可以改SDO*/
 } co_status_t;
 ```
 
-- `enum`：枚举，把整数起成有意义的名字。
-- `typedef`：为这个类型起名。
-- `co_status_t`：我们起的类型名，以后可以用它声明变量。
 
-例如：
-
-```
-co_status_t result;
-```
-
-意思是：创建一个名叫 `result` 的变量，用来保存执行结果。
-
-这里要区分：
-
-```
-co_status_t   是类型名
-result        是变量名
-CO_ERR_DLC    是可赋给变量的枚举常量，数值为 5
-```
-
-这些结果码是我们为程序内部定义的，不是 CANopen 规定要发送到总线上的状态字节。 目前先理解“类型、变量、枚举常量”这三者的关系就可以。
 
 
 
@@ -543,7 +376,7 @@ typedef enum {
 
 
 
-## 4：第三个枚举
+## 4：CAN 报文结构体
 
 ```c
 typedef struct {
@@ -604,7 +437,7 @@ uint32_t id;
 
 例如：
 
-```
+```c
 0x000：NMT
 0x181：TPDO1
 0x201：RPDO1
@@ -687,7 +520,7 @@ CAN-ID = 0x201
 有效数据 = 05
 ```
 
-虽然 `dlc` 用 `uint8_t`，可以保存 0～255，但协议校验会限制它不能大于 8。
+虽然 `dlc` 用 `uint8_t`，可以保存 0～255，但协议校验会限制它不能大于 8字节。
 
 ------
 
@@ -847,7 +680,7 @@ CAN FD 可以携带超过 8 字节的数据，但第一版项目不实现。
 
 假设主站向 Node-ID=1 下发 DO 状态：
 
-```
+```c
 can_frame_t frame = {
     .id = 0x201,
     .dlc = 1,
@@ -860,7 +693,7 @@ can_frame_t frame = {
 
 它代表：
 
-```
+```c
 CAN-ID：0x201
 DLC：1
 DATA[0]：0x05
@@ -979,282 +812,292 @@ frame.data[0] = 0x05;
 ## 5：函数指针
 
 ```c
-/* 发送函数指针：user 为私有数据，frame 为只读帧；返回传输状态。
- * 回调必须非阻塞；排队时先复制帧。成功只表示接受提交，不代表总线 ACK。 */
+/* 发送函数指针*/
+
 typedef co_status_t (*co_tx_fn)(void *user, const can_frame_t *frame);
 ```
 
-它定义的不是一个普通函数，而是一个**函数指针类型**。
+`co_tx_fn` 是一种“函数指针类型”，指向的函数必须满足：
+ 传入两个参数 `user` 和 `frame`，返回一个 `co_status_t`。
 
+也就是要求被指向的函数长这样：
 
-
-#### **① 拆解函数指针类型，理解它表示什么**
-
-```
-typedef co_status_t (*co_tx_fn)(void *user, const can_frame_t *frame);
-```
-
-分开看：
-
-| 部分                       | 含义                                                         |
-| -------------------------- | ------------------------------------------------------------ |
-| `typedef`                  | 给类型起名字                                                 |
-| `co_status_t`              | 返回值：指向的函数返回操作结果，例如 `CO_OK`                 |
-| `(*co_tx_fn)`              | 函数类型：将这个函数指针类型命名为 `co_tx_fn` （是一个函数指针） |
-| `void *user`               | 函数的第一个参数：辅助数据的地址                             |
-| `const can_frame_t *frame` | 第二个参数：待发送 CAN 帧的地址                              |
-
-整句话表示：
-
-> 定义一个函数指针类型 `co_tx_fn`，它可以指向“接收这两个参数，并返回 `co_status_t`”的函数。
-
-这行只是定义类型，还没有创建指针变量，也没有发送报文。
-
-
-
-#### **② 声明 `tx`，把封装的发送函数赋给它**
-
-假设以后我们封装的 STM32 发送函数叫 `stm32_can_send`，它的声明是：
-
-```
-co_status_t stm32_can_send(void *user, const can_frame_t *frame);
-```
-
-它的参数和返回值类型，符合 `co_tx_fn` 的要求。
-
-于是可以写：
-
-```
-co_tx_fn tx;           /* 声明一个函数指针变量 tx */
-tx = stm32_can_send;  /* 把发送函数的地址赋给 tx */
-```
-
-也可以合成一行：
-
-```
-co_tx_fn tx = stm32_can_send;
-```
-
-注意：
-
-```
-tx = stm32_can_send;
-```
-
-是**保存函数地址**，这时还没有调用函数。
-
-以后写：
-
-```
-tx(...);
-```
-
-才会调用它所指向的 `stm32_can_send()`。
-
-这里的 `stm32_can_send` 是帮助理解的示例名称，当前工程还没有实现这个硬件发送函数。
-
-
-
-#### **③ 封装函数的两个形参是什么意思**
-
-```
-co_status_t stm32_can_send(
-    void *user,
-    const can_frame_t *frame
-);
-```
-
-第一个形参：
-
-```
-void *user
-```
-
-表示**发送函数需要的辅助数据地址**。
-
-例如，STM32 发送函数需要知道使用哪个 CAN 外设，可以把 CAN 句柄的地址传进来：
-
-```
-&hcan1
-```
-
-在使用 STM32 HAL 的实现中，函数内部可以将它还原成对应的指针类型：
-
-```
-CAN_HandleTypeDef *hcan = user;
-```
-
-这样发送函数就知道要操作哪个 CAN 外设。
-
-这里 `user` 不是指上位机用户，也不是报文目的地址，而是**给本机发送函数使用的辅助信息**。
-
-第二个形参：
-
-```
-const can_frame_t *frame
-```
-
-表示**待发送 CAN 报文的地址**。
-
-函数通过它读取：
-
-```
-frame->id       /* CAN-ID */
-frame->dlc      /* 有效数据长度 */
-frame->data     /* 数据内容 */
-```
-
-`const` 表示不能通过这个指针修改原始报文。
-
-两个参数可以这样记：
-
-```
-user  → 发送时需要使用什么资源，例如 CAN1 句柄
-frame → 具体要发送哪一帧报文
-```
-
-
-
-#### **④ STM32 调用这个函数，向主机 CAN 上位机发送报文**
-
-下面以 STM32 发送一帧 Operational 心跳为例，演示以后的调用方式：
-
-```
-/* 准备报文：节点 1 的运行状态心跳 */
-can_frame_t frame = {
-    .id = 0x701,
-    .dlc = 1,
-    .data = {0x05},
-    .is_extended = 0,
-    .is_remote = 0,
-    .is_fd = 0
-};
-
-/* 选择封装好的 STM32 发送函数 */
-co_tx_fn tx = stm32_can_send;
-
-/* 调用它，传入 CAN1 句柄地址和报文地址 */
-co_status_t result = tx(&hcan1, &frame);
-```
-
-最后一行等价于直接调用：
-
-```
-co_status_t result = stm32_can_send(&hcan1, &frame);
-```
-
-这时两个实参分别交给两个形参：
-
-```
-&hcan1  → user
-&frame  → frame
-```
-
-实际发送方向是：
-
-```
-STM32 程序调用 tx
-    ↓
-执行 stm32_can_send
-    ↓
-将报文提交给 STM32 CAN 外设
-    ↓
-经过 CAN 收发器和总线
-    ↓
-USB-CAN 分析仪
-    ↓
-电脑上的 CAN 上位机接收
-```
-
-调用返回的 `result` 表示**本次提交结果**：
-
-```
-CO_OK             /* 已接受提交 */
-CO_ERR_TX_BUSY     /* 暂时忙，未接受提交 */
-CO_ERR_TX_FAILED   /* 提交失败 */
-```
-
-`CO_OK` 表示本机接受了发送请求，不表示主机上位机已经收到或处理了报文。
-
-
-
-#### ⑤：提交成功区分
-
-我们需要区分 **“提交成功”“总线发送成功”“上位机处理成功”**，这三个结果来自不同环节。
-
-##### 1：提交成功：看发送函数的返回值**
-
-```
-result = tx(&hcan1, &frame);
-```
-
-返回 `CO_OK`，只说明报文已经交给发送队列或 CAN 邮箱。
-
-此时 CAN 控制器可能还在等待总线空闲、等待仲裁，所以不能说已经发出去了。
-
-
-
-##### 2：CAN 总线发送成功：看 CAN 外设的发送完成结果**
-
-之后由 CAN 控制器真正执行发送。STM32 可以通过**发送完成中断或查询硬件状态**，知道结果。
-
-以后接入 STM32 HAL 时，可以通过对应邮箱的发送完成回调处理成功事件，例如：
-
-```
-void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan)
+```c
+co_status_t can_send( void *user，const can_frame_t *frame）       
 {
-    /* 邮箱 0 的报文已成功完成 CAN 总线发送 */
+    // 真正发送 CAN 帧
+    return CO_OK;
 }
 ```
 
-邮箱 1、邮箱 2 也有对应回调；需要先配置并启用相关中断通知。失败或异常则结合错误回调、错误码和邮箱状态处理。
+```c
+你之前如果看到：
 
-流程是：
+int *p;
+
+你知道：
+
+p 是一个指向 int 的指针。
+
+而：
+
+int (*p)(int);
+
+就变成：
+
+p 是一个指向函数的指针。
+
+这里也是完全一样的思想：
+
+co_status_t (*co_tx_fn)(...)
+
+说明：
+
+co_tx_fn 是一个函数指针。
+```
+
+
+
+```c
+为什么 * 要写在括号里面？
+
+这是 C 语言声明里非常重要的一点。
+
+比较：
+
+co_status_t *co_tx_fn(...);
+
+和：
+
+co_status_t (*co_tx_fn)(...);
+
+含义完全不同。
+
+第一种
+co_status_t *co_tx_fn(...);
+
+意思是：
+
+co_tx_fn 是一个函数，这个函数返回 co_status_t *。
+
+也就是：
+
+函数
+ ↓
+返回一个 co_status_t*
+第二种
+co_status_t (*co_tx_fn)(...);
+
+意思是：
+
+co_tx_fn 是一个指向函数的指针，这个函数返回 co_status_t。
+
+也就是：
+
+co_tx_fn
+   ↓
+函数
+   ↓
+返回 co_status_t
+
+所以括号：
+
+(*co_tx_fn)
+
+是在告诉编译器：
+
+co_tx_fn 本身是函数指针。
+```
+
+
+
+#### PC端发送函数实例
+
+```c
+co_status_t co_init(co_context_t *ctx, uint8_t node_id,
+                    co_tx_fn tx, void *tx_user)
+{
+    if (ctx == NULL || tx == NULL)
+    { /* 先检查指针，避免写入无效内存或保存空回调 */
+        return CO_ERR_ARGUMENT;
+    }
+    if (node_id == 0u || node_id > CO_NODE_ID_MAX)
+    { /* 所有检查通过后才写上下文，保证失败不改配置 */
+        return CO_ERR_NODE_ID;
+    }
+    ctx->node_id = node_id;             /* 记录本节点编号 */
+    ctx->state = CO_NMT_INITIALIZATION; /* 初始状态，不在这里进入运行状态 */
+    ctx->tx = tx;                       /* 绑定外部提供的发送函数 */
+    ctx->tx_user = tx_user;             /* 绑定传输私有数据，可为空 */
+    return CO_OK;                       /* 本次操作成功 */
+}
+
+需要填入4个形参
+//第一个参数
+先创建一个 co_context_t 类型的结构体变量：co_context_t node = {0};然后把它的地址作为第一个参数：
+   
+//第二个参数
+例如我们要把节点编号设为 1，直接传 1：
+    
+//第三个参数：需要先写好一个发送函数，再把这个函数的地址传进去
+函数声明中的第三个参数是：
+co_tx_fn tx
+这里：
+co_tx_fn → 函数指针类型
+tx       → 函数指针变量，用于接收发送函数的地址
+先准备一个符合要求的函数
+co_tx_fn 规定函数必须有这样的返回类型和参数：
+co_status_t my_send(void *user, const can_frame_t *frame)
+{
+    /* 具体发送操作写在这里 */
+}
+上面只是展示函数形式，还不是完整实现。user 和 frame 暂时先不展开。
+ PC端我们的发送函数名叫做fake_tx，一会传的是fake_tx，而不是my_send
+    
+//第四个参数：是第三个发送函数需要使用的数据的地址。
+stm32实机测试则传送can句柄：&hcan1
+目前为pc端测试，则传&bus ，为一个模拟总线变量 bus
+因此初始化是
+co_init(&node, 1, fake_tx, &bus);
+
+//纠错：一个小术语修正：调用时填入的是四个“实参”，函数定义中接收它们的变量叫“形参”。
 
 ```
-调用发送函数
-    ↓
-返回 CO_OK：提交成功
-    ↓
-CAN 控制器实际发送
-    ↓
-发送完成通知：总线发送成功
+
+
+
+#### 完整流程：
+
+```c
+//PC端书写的模拟发送的函数
+static co_status_t fake_tx(void *user, const can_frame_t *frame)
+{
+    fake_bus_t *bus = user;
+    /* 将通用辅助指针还原为模拟总线结构体指针 */
+
+    ++bus->calls;
+    /* 每进入一次发送回调，调用次数加 1 */
+
+    bus->frame = *frame;
+    /* 复制整帧报文，保存最近一次提交的报文 */
+
+    return bus->result;
+    /* 返回预先设置的模拟发送结果 */
+}
+它依赖的结构体是：
+typedef struct {
+    unsigned calls;          /* 发送回调调用次数 */
+    can_frame_t frame;       /* 最近一次提交的报文副本 */
+    co_status_t result;      /* 预设的返回状态 */
+} fake_bus_t;
+
+    
+//完整流程
+完整流程是：
+co_context_t node
+    ├── node_id = 1
+    ├── state = INITIALIZATION
+    ├── tx ─────────► fake_tx
+    └── tx_user ────► bus
+调用：
+co_send(&node, &tx_frame);
+co_send() 通过 &node 找到：
+ctx->tx
+ctx->tx_user
+然后执行：
+ctx->tx(ctx->tx_user, frame);	//在co_init（）初始化中传入了我们的模拟总线量fake_bus_t bus的地址 ctx->tx_user
+实际等价于：
+fake_tx(&bus, &tx_frame);
+进入回调后：
+user  ──► bus
+frame ──► tx_frame
+回调执行：
+++bus->calls;       /* 记录调用次数 */
+bus->frame = *frame;/* 保存报文副本 */
+return bus->result; /* 返回预设结果 */
+所以：
+node 保存“调用谁”和“给它什么辅助数据”
+co_send 负责检查并连接这些信息
+fake_tx 负责模拟这次发送并记录结果
+tx_frame 保存本次准备发送的报文
+但当前 PC 测试中，fake_tx() 只是记录报文，并没有真正发送到 CAN 总线。
+    
+调用关系：
+co_init(&node, 1, fake_tx, &bus);//co_init(co_context_t *ctx, uint8_t node_id, co_tx_fn tx, void *tx_user)         
+	    │
+        ▼
+co_send(&node, &tx_frame)	// co_send(const co_context_t *ctx, const can_frame_t *frame)
+        │
+        ▼
+fake_tx(&bus, &tx_frame)	//fake_tx(void *user, const can_frame_t *frame)非单独调用，在co_send中由本句调用
+        ▼    													// return ctx->tx(ctx->tx_user, frame); 
+        │
+        ├── bus.calls 加 1
+        ├── bus.frame 保存 tx_frame 副本
+        └── 返回 bus.result
+          
+//补充
+ 调用者先执行：
+co_init(&node, 1, fake_tx, &bus)
+    └── 保存函数地址和辅助数据地址，随后返回
+
+调用者以后需要发送时，再执行：
+co_send(&node, &tx_frame)
+    │
+    ├── 检查节点与报文
+    │
+    └── 内部调用 fake_tx(&bus, &tx_frame)
+                    ├── bus.calls 加 1
+                    ├── bus.frame 保存报文副本
+                    └── 返回 bus.result
+                              │
+                              ▼
+                    co_send 原样返回该结果
 ```
 
-如果没有其他正常工作的节点提供 ACK，就不能完成正常的成功发送。是否自动重试，取决于控制器配置。
-
-但 **CAN ACK 只说明至少一个其他节点正确接收了这帧，不包含接收者身份，也不证明电脑软件处理了它。**
 
 
+#### 纠错：
+
+```
+co_send 原样返回该结果就是bus.calls 加 1 ，bus.frame 保存报文副本 是不是？
+```
+
+```c
+不是，这里要分清“修改变量”和“返回结果”。
+fake_tx() 做了三件事：
+++bus->calls;        /* 修改：调用次数加 1 */
+bus->frame = *frame; /* 修改：保存报文副本 */
+
+return bus->result; /* 返回：预设的状态码 */
+前两项是直接修改 bus 里的成员，并不通过 return 返回。
+“co_send() 原样返回该结果”指的是 bus.result 的状态码。例如：
+bus.result = CO_OK;
+
+co_status_t status = co_send(&node, &tx_frame);
+执行后的结果是：
+bus.calls → 比调用前增加 1
+bus.frame → 保存了 tx_frame 的副本
+
+bus.result = CO_OK
+      │
+      │ fake_tx 返回
+      ▼
+   co_send
+      │
+      │ 原样返回
+      ▼
+status = CO_OK
+因此，次数和报文留在 bus 变量里；状态码通过 return 交给调用者。
+```
 
 
 
-##### 3：上位机确实收到或处理：看上位机记录或应用层反馈**
-
-在我们的项目中：
-
-- **调试验证**：在 CAN 上位机中看到 STM32 发来的 `0x701`、`0x581`、`0x181` 等报文，确认上位机能收到。
-- **需要 STM32 自己知道主机已经处理**：必须有应用层的确认报文，并定义等待超时和失败处理。
-
-CANopen 的 **TPDO 和 Heartbeat 本身没有逐帧应用层确认**，不能等一个协议中不存在的“主机确认回复”。SDO 有请求—响应交互，但 STM32 发出 SDO 响应后，也没有额外的“主机已处理响应”确认。
-
-所以，我们后续接入硬件时，会分别记录：
-
-| 观察结果             | 能证明什么           |
-| -------------------- | -------------------- |
-| 发送函数返回 `CO_OK` | 本机接受提交         |
-| CAN 外设报告发送完成 | CAN 总线发送成功     |
-| 上位机显示收到的报文 | 报文已到达上位机软件 |
-
-**当前阶段只模拟并验证第一步；阶段 7 接入 bxCAN 后，再验证真实发送完成和上位机接收。**
 
 
 
 
-
-
-
-## 6：co_context_t 结构体
+## 6：节点信息结构体
 
 ```c
 typedef struct {
@@ -1265,7 +1108,7 @@ typedef struct {
 } co_context_t;
 ```
 
-**把一个节点需要保存的信息，集中放在一起。**
+把一个节点需要保存的信息，集中放在一起。
 
 
 
@@ -1300,7 +1143,7 @@ co_nmt_state_t state;
 
 它保存节点当前处于哪个状态，例如：
 
-```
+```c
 CO_NMT_INITIALIZATION
 CO_NMT_PRE_OPERATIONAL
 CO_NMT_OPERATIONAL
@@ -1329,15 +1172,7 @@ co_tx_fn tx;
 - `co_tx_fn`：函数指针类型。
 - `tx`：保存发送函数地址的成员。
 
-和刚才的：
 
-```
-co_tx_fn send_ptr;
-```
-
-意思一样，只是这里把变量名换成了 `tx`，并放进结构体中。
-
-以后将封装好的发送函数地址保存到 `tx`，就能通过它调用那个函数。
 
 
 
@@ -1370,10 +1205,10 @@ tx_user  保存：调用时交给它什么辅助数据
 
 
 
-#### **⑤ `} co_context_t;`**
+#### **⑤ ` co_context_t;`**
 
 ```
-} co_context_t;
+ co_context_t;
 ```
 
 结束结构体定义，并把这个类型命名为 `co_context_t`。
@@ -1417,6 +1252,36 @@ ctx.state
 | `tx_user` | 发送函数需要的辅助数据地址 |
 
 
+
+#### 实例：
+
+```c
+用 co_context_t 创建一个结构体变量 node：
+co_context_t node = {0};
+这个变量里面有四个成员：
+node
+ ├── node.node_id
+ ├── node.state
+ ├── node.tx
+ └── node.tx_user
+假设已经定义好 fake_bus_t 和 fake_tx()，我们就可以初始化它：
+fake_bus_t bus = {0};       /* 创建模拟总线变量 */
+co_context_t node = {0};    /* 创建节点上下文变量 */
+
+co_init(&node, 1, fake_tx, &bus);
+初始化成功后，等效于完成这些赋值：
+node.node_id = 1;
+node.state = CO_NMT_INITIALIZATION;
+node.tx = fake_tx;
+node.tx_user = &bus;
+此时：
+node
+ ├── node_id = 1
+ ├── state = CO_NMT_INITIALIZATION
+ ├── tx ─────────► fake_tx 函数
+ └── tx_user ────► bus 变量
+co_context_t 是类型名，node 是用这个类型创建的结构体变量，也就是一个实例。
+```
 
 
 

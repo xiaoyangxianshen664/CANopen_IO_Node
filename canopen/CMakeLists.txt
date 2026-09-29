@@ -1,4 +1,4 @@
-add_library(canopen_core STATIC src/co_core.c src/co_od.c src/co_device_od.c src/co_nmt.c)
+add_library(canopen_core STATIC src/co_core.c src/co_od.c src/co_device_od.c src/co_nmt.c src/co_hb.c)
 target_include_directories(canopen_core PUBLIC include)
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(canopen_core PRIVATE -Wall -Wextra -Wpedantic -Werror)

@@ -46,6 +46,15 @@ elseif(MSVC)
     target_compile_options(test_co_hb PRIVATE /W4 /WX)
 endif()
 add_test(NAME heartbeat COMMAND test_co_hb)
+
+add_executable(test_co_sdo test_co_sdo.c)
+target_link_libraries(test_co_sdo PRIVATE canopen_core)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(test_co_sdo PRIVATE -Wall -Wextra -Wpedantic -Werror)
+elseif(MSVC)
+    target_compile_options(test_co_sdo PRIVATE /W4 /WX)
+endif()
+add_test(NAME sdo COMMAND test_co_sdo)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME od_eds COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/test_eds.py

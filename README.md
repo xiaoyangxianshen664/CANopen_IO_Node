@@ -14,7 +14,7 @@
 
 项目骨架已建立，硬件基线为野火挑战者 STM32F429IGT6 开发板；CAN 引脚和低压 I/O 方案已完成阶段 0 冻结。
 
-阶段 1 基础层、阶段 2 通用对象字典及 36 条实际对象、阶段 3 NMT/Boot-up 已实现；PC 测试 12/12 通过。DI/DO/AI、Heartbeat 周期、固定 PDO 参数已绑定；Heartbeat Producer、SDO、PDO 服务和硬件适配仍待后续阶段实现。
+阶段 1 基础层、阶段 2 通用对象字典及 36 条实际对象、阶段 3 NMT/Boot-up、阶段 4 Heartbeat Producer 和阶段 5 expedited SDO Server 已实现；当前全部 PC 测试通过。DI/DO/AI、Heartbeat 周期、固定 PDO 参数已绑定；PDO 服务和硬件适配仍待后续阶段实现。
 
 提供 [项目基线 EDS v1.1](eds/CANopen_IO_Node.eds) 和 [对象表与复核记录](docs/阶段2对象表与规范复核.md)。PDO 的 COB-ID、传输类型、映射固定只读；抑制时间固定0，事件周期默认0且可在 Pre-operational 修改。AI 使用 INTEGER16 表示原始ADC乘8（0～32760）；6423控制模拟量变化触发。Vendor-ID=0 为未分配的开发占位。阶段2对象模型原文核验与第三方离线EDS导入已完成；实机互通尚待完成，不宣称完整 CiA 401 实现或认证。
 

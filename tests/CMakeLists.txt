@@ -55,6 +55,15 @@ elseif(MSVC)
     target_compile_options(test_co_sdo PRIVATE /W4 /WX)
 endif()
 add_test(NAME sdo COMMAND test_co_sdo)
+
+add_executable(test_co_pdo test_co_pdo.c)
+target_link_libraries(test_co_pdo PRIVATE canopen_core)
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(test_co_pdo PRIVATE -Wall -Wextra -Wpedantic -Werror)
+elseif(MSVC)
+    target_compile_options(test_co_pdo PRIVATE /W4 /WX)
+endif()
+add_test(NAME pdo COMMAND test_co_pdo)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(NAME od_eds COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/test_eds.py

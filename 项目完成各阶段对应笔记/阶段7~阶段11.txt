@@ -1,0 +1,136 @@
+阶段 7：STM32 bxCAN 传输层（已完成，2026-10-02）
+把协议栈接入 STM32F429 的 CAN1 外设。
+
+阶段7收尾：CAN1 BSP、Keil 工程接入、过滤器、FIFO0 接收中断、发送邮箱、`can_frame_t` 转换、软件环形队列、错误回调和 Bus-off 统计均已完成；纯 C 协议文件已加入 `Canopen` 分组，工程编译通过。USB-CAN 实际互通和 Boot-up/NMT/Heartbeat/SDO/PDO 系统验收留到阶段8～10，下一步进入 FreeRTOS 与真实 I/O。
+
+主要工作：
+- 配置 CAN1、500 kbit/s、标准帧；
+- 配置 CAN 过滤器；
+- 接收 FIFO 中断；
+- 将 CAN 硬件帧转换成 can_frame_t；
+- 接入 co_send() 的发送回调；
+- 使用邮箱发送 CAN 报文；
+- 统计 FIFO 溢出、邮箱满、ACK 错误和 Bus-off；
+- USB-CAN 实际互通和完整协议验收在阶段8～10继续；
+- 验证 Boot-up、NMT、Heartbeat、SDO 和 PDO。
+这一阶段的核心是：
+STM32 bxCAN 驱动
+        ↕
+can_frame_t
+        ↕
+阶段 1～6 的纯 C 协议栈
+
+
+阶段 8：FreeRTOS 与真实 I/O
+把协议栈接入任务系统和真实硬件输入输出。
+主要工作：
+- 建立 CANopenTask；
+- 建立 IOTask；
+- 建立 MonitorTask；
+- 建立 DiagnosticsTask；
+- 设计 CAN 接收中断到协议任务的消息链；
+- 读取真实按键 DI；
+- 控制真实 LED/DO；
+- 使用 ADC DMA 采集两路 AI；
+- 将真实 DI/AI 更新到对象字典；
+- 将 RPDO 写入的 DO 值输出到 GPIO；
+- 检查任务优先级、队列、通知和并发访问。
+典型链路：
+CAN RX 中断
+    ↓
+队列或任务通知
+    ↓
+CANopenTask
+    ↓
+co_nmt_receive()
+co_sdo_receive()
+co_pdo_receive()
+    ↓
+对象字典 / 状态机
+输入输出链路：
+按键、ADC
+    ↓
+IOTask
+    ↓
+co_device_od_update_inputs()
+    ↓
+co_pdo_process()
+    ↓
+TPDO 上报
+
+阶段 9：EMCY 与可靠性
+实现故障上报、安全策略和异常恢复。
+
+主要工作：
+- 实现 EMCY 报文，CAN-ID 为：
+  0x080 + Node-ID
+- 定义 CAN 错误、Bus-off、FIFO 溢出等错误码；
+- 更新对象字典中的 Error Register；
+- 处理 ADC、GPIO、输出和通信故障；
+- 增加通信超时监测；
+- 增加看门狗和任务健康检查；
+- 发生严重故障时让 DO 进入安全状态；
+- 设计故障计数、清除、恢复和重新启动流程；
+- 验证故障上报后节点能否恢复通信。
+目标链路：
+检测故障
+    ↓
+设置 Error Register
+    ↓
+发送 EMCY
+    ↓
+输出进入安全状态
+    ↓
+记录并等待恢复或复位
+
+阶段 10：完整验收和项目材料
+对整个项目进行系统验收，并整理成可以展示和交付的项目。
+主要工作：
+- 用 CANopen Magic、USB-CAN 或 Python 工具测试；
+- 验证：
+  Boot-up
+  NMT
+  Heartbeat
+  SDO
+  RPDO
+  TPDO
+  EMCY
+- 测试非法 CAN 帧；
+- 测试错误 DLC、错误对象、错误状态和非法值；
+- 测试 PDO 状态限制；
+- 测试 FIFO 溢出、邮箱满和 Bus-off；
+- 做长时间运行和随机报文压力测试；
+- 整理 README；
+- 整理对象字典、EDS、PDO 映射和任务架构；
+- 整理接线图、原理图、测试截图和 CAN 报文记录；
+- 记录已知限制和未实现功能；
+- 形成 GitHub 最终版本和项目面试材料。
+最终系统形态大致是：
+STM32F429 + FreeRTOS
+        │
+        ├── CAN1 / bxCAN
+        ├── 4路 DI
+        ├── 4路 DO
+        └── 2路 AI
+                │
+                ▼
+        CANopen CiA 301/401 节点
+简单说：
+阶段 7：接 CAN 硬件
+阶段 8：接 FreeRTOS 和真实 I/O
+阶段 9：补故障和可靠性
+阶段 10：整机验收和项目交付
+完成阶段 10 后，CANopen I/O Node 才算从“PC 纯 C 协议项目”发展成一个完整的 STM32 工业通信节点。
+
+
+阶段 11 包括：
+- 冻结 STM32F429、供电、时钟、SWD、CAN、DI、DO、AI 和接口电平；
+- 完成原理图和器件选型；
+- 检查 CAN 收发器、终端、电源、复位、启动配置和 I/O 保护；
+- 完成 PCB 布局、ERC/DRC、BOM、Gerber 和生产文件；
+- 打样、焊接和分模块上电；
+- 分别验证 CAN、DI、DO、ADC；
+- 将阶段 10 的软件适配到专用板；
+- 在专用板上复验 Boot-up、NMT、Heartbeat、SDO、PDO 和 EMCY；
+- 整理原理图、PCB 图、BOM、实物照片和测试证据上传github！！！！！！！！
+

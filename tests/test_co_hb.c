@@ -93,6 +93,7 @@ int main(void)
     CHECK(set_period(&device, 500) == CO_OK); /* same value still restarts */
     CHECK(co_hb_process(&hb, 499) == CO_IGNORED);
     CHECK(co_hb_process(&hb, 1) == CO_OK && fake.sends == 6u);
+    /*14：再次关闭 Heartbeat*/
     CHECK(set_period(&device, 0) == CO_OK);
     CHECK(co_hb_process(&hb, 500) == CO_IGNORED);
     puts("Heartbeat: timing, state byte, disable, rewrite and retry passed");

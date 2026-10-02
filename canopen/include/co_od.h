@@ -1,71 +1,71 @@
-/* ½×¶Î 2 ¶ÔÏó×Öµä»ù´¡²ã£ºÖĞÎÄÑ§Ï°×¢ÊÍ£»ÎÄ¼ş±àÂë GB2312£¨´úÂëÒ³ 936£©¡£ */
+/* é˜¶æ®µ 2 å¯¹è±¡å­—å…¸åŸºç¡€å±‚ï¼šä¸­æ–‡å­¦ä¹ æ³¨é‡Šï¼›æ–‡ä»¶ç¼–ç  GB2312ï¼ˆä»£ç é¡µ 936ï¼‰ã€‚ */
 #ifndef CO_OD_H
 #define CO_OD_H
 
 #include "co_types.h"
-#include <stddef.h> /* Ìá¹© size_t */
-#include <stdint.h> /* Ìá¹©¹Ì¶¨Î»¿íÕûÊıÀàĞÍ */
+#include <stddef.h> /* æä¾› size_t */
+#include <stdint.h> /* æä¾›å›ºå®šä½å®½æ•´æ•°ç±»å‹ */
 
 typedef enum
 {
-    CO_OD_BOOLEAN = 5,   /* ²¼¶û¶ÔÏó£ºSDOÊ¹ÓÃ1×Ö½Ú£¬ºÏ·¨Öµ0/1 */
-    CO_OD_UNSIGNED8 = 1,  /* ÎŞ·ûºÅ 8 Î»ÕûÊı£¬Õ¼ 1 ×Ö½Ú */
-    CO_OD_UNSIGNED16 = 2, /* ÎŞ·ûºÅ 16 Î»ÕûÊı£¬Õ¼ 2 ×Ö½Ú */
-    CO_OD_INTEGER16 = 6,  /* ÓĞ·ûºÅ 16 Î»£»ÄÚ²¿±ê¼Ç£¬²»ÊÇ EDS ÀàĞÍ±àºÅ */
-    CO_OD_UNSIGNED32 = 4  /* ÎŞ·ûºÅ 32 Î»ÕûÊı£¬Õ¼ 4 ×Ö½Ú */
+    CO_OD_BOOLEAN = 5,   /* å¸ƒå°”å¯¹è±¡ï¼šSDOä½¿ç”¨1å­—èŠ‚ï¼Œåˆæ³•å€¼0/1 */
+    CO_OD_UNSIGNED8 = 1,  /* æ— ç¬¦å· 8 ä½æ•´æ•°ï¼Œå  1 å­—èŠ‚ */
+    CO_OD_UNSIGNED16 = 2, /* æ— ç¬¦å· 16 ä½æ•´æ•°ï¼Œå  2 å­—èŠ‚ */
+    CO_OD_INTEGER16 = 6,  /* æœ‰ç¬¦å· 16 ä½ï¼›å†…éƒ¨æ ‡è®°ï¼Œä¸æ˜¯ EDS ç±»å‹ç¼–å· */
+    CO_OD_UNSIGNED32 = 4  /* æ— ç¬¦å· 32 ä½æ•´æ•°ï¼Œå  4 å­—èŠ‚ */
 } co_od_type_t;
 
 typedef enum
 {
-    CO_OD_CONSTANT = 2, /* ¹Ì¶¨³£Á¿£¬²»ÔÊĞíĞ´Èë */
-    CO_OD_READ_ONLY = 0, /* Ö÷Õ¾¿ÉÒÔ¶Á£¬²»ÄÜÍ¨¹ı¶ÔÏó×ÖµäĞ´Èë */
-    CO_OD_READ_WRITE = 1 /* Ö÷Õ¾¿ÉÒÔ¶Á£¬Ò²¿ÉÒÔĞ´ */
+    CO_OD_CONSTANT = 2, /* å›ºå®šå¸¸é‡ï¼Œä¸å…è®¸å†™å…¥ */
+    CO_OD_READ_ONLY = 0, /* ä¸»ç«™å¯ä»¥è¯»ï¼Œä¸èƒ½é€šè¿‡å¯¹è±¡å­—å…¸å†™å…¥ */
+    CO_OD_READ_WRITE = 1 /* ä¸»ç«™å¯ä»¥è¯»ï¼Œä¹Ÿå¯ä»¥å†™ */
 } co_od_access_t;
 
-/* ¶ÁÈ¡»Øµ÷°Ñ¶ÔÏóµ±Ç°Öµ°´ CANopen Ğ¡¶Ë×Ö½ÚĞòĞ´Èë data¡£ */
+/* è¯»å–å›è°ƒæŠŠå¯¹è±¡å½“å‰å€¼æŒ‰ CANopen å°ç«¯å­—èŠ‚åºå†™å…¥ dataã€‚ */
 typedef co_status_t (*co_od_read_fn)(void *user, uint8_t *data, uint8_t length);
 
-/* Ğ´Èë»Øµ÷½ÓÊÕÒÑ¾­Íê³É³¤¶È¡¢È¨ÏŞºÍ·¶Î§¼ì²éµÄ¶ÔÏóÖµ¡£ */
+/* å†™å…¥å›è°ƒæ¥æ”¶å·²ç»å®Œæˆé•¿åº¦ã€æƒé™å’ŒèŒƒå›´æ£€æŸ¥çš„å¯¹è±¡å€¼ã€‚ */
 typedef co_status_t (*co_od_write_fn)(void *user, const uint8_t *data, uint8_t length);
 
 typedef struct
 {
-    uint16_t index;           /* ¶ÔÏóË÷Òı£¬ÀıÈç 0x6200 */
-    uint8_t subindex;         /* ¶ÔÏó×ÓË÷Òı£¬ÀıÈç 0x01 */
-    co_od_type_t type;        /* ¶ÔÏóÊı¾İÀàĞÍ£¬Í¬Ê±¾ö¶¨±ê×¼³¤¶È */
-    co_od_access_t access;    /* Ö÷Õ¾µÄ¶ÁĞ´È¨ÏŞ */
-    uint8_t length;           /* ¶ÔÏóÔÚ SDO/PDO ÖĞÕ¼ÓÃµÄ×Ö½ÚÊı */
-    int64_t min_value;        /* Ğ´ÈëÖµÔÊĞíµÄ×îĞ¡Öµ */
-    int64_t max_value;        /* Ğ´ÈëÖµÔÊĞíµÄ×î´óÖµ */
-    uint8_t write_preop_only; /* ·ÇÁã±íÊ¾Ö»ÔÊĞí Pre-operational ×´Ì¬Ğ´Èë */
-    co_od_read_fn read;       /* ¶ÁÈ¡¶ÔÏóÖµµÄ»Øµ÷ */
-    co_od_write_fn write;     /* Ğ´Èë¶ÔÏóÖµµÄ»Øµ÷£»Ö»¶Á¶ÔÏó¿ÉÎª NULL */
-    void *user;               /* »Øµ÷Ê¹ÓÃµÄÓ¦ÓÃ²ãË½ÓĞÊı¾İ */
-} co_od_entry_t;              // ¶ÔÏóÌõÄ¿½á¹¹Ìå
+    uint16_t index;           /* å¯¹è±¡ç´¢å¼•ï¼Œä¾‹å¦‚ 0x6200 */
+    uint8_t subindex;         /* å¯¹è±¡å­ç´¢å¼•ï¼Œä¾‹å¦‚ 0x01 */
+    co_od_type_t type;        /* å¯¹è±¡æ•°æ®ç±»å‹ï¼ŒåŒæ—¶å†³å®šæ ‡å‡†é•¿åº¦ */
+    co_od_access_t access;    /* ä¸»ç«™çš„è¯»å†™æƒé™ */
+    uint8_t length;           /* å¯¹è±¡åœ¨ SDO/PDO ä¸­å ç”¨çš„å­—èŠ‚æ•° */
+    int64_t min_value;        /* å†™å…¥å€¼å…è®¸çš„æœ€å°å€¼ */
+    int64_t max_value;        /* å†™å…¥å€¼å…è®¸çš„æœ€å¤§å€¼ */
+    uint8_t write_preop_only; /* éé›¶è¡¨ç¤ºåªå…è®¸ Pre-operational çŠ¶æ€å†™å…¥ */
+    co_od_read_fn read;       /* è¯»å–å¯¹è±¡å€¼çš„å›è°ƒ */
+    co_od_write_fn write;     /* å†™å…¥å¯¹è±¡å€¼çš„å›è°ƒï¼›åªè¯»å¯¹è±¡å¯ä¸º NULL */
+    void *user;               /* å›è°ƒä½¿ç”¨çš„åº”ç”¨å±‚ç§æœ‰æ•°æ® */
+} co_od_entry_t;              // å¯¹è±¡æ¡ç›®ç»“æ„ä½“
 
 typedef struct
 {
-    const co_od_entry_t *entries; /* ¶ÔÏóÌõÄ¿Êı×é */
-    size_t count;                 /* Êı×éÖĞÓĞĞ§ÌõÄ¿Êı */
-} co_od_table_t;                  // ¶ÔÏóÌõÄ¿¹ÒÔØµÄ¶ÔÏó±í
+    const co_od_entry_t *entries; /* å¯¹è±¡æ¡ç›®æ•°ç»„ */
+    size_t count;                 /* æ•°ç»„ä¸­æœ‰æ•ˆæ¡ç›®æ•° */
+} co_od_table_t;                  // å¯¹è±¡æ¡ç›®æŒ‚è½½çš„å¯¹è±¡è¡¨
 
 /**
- * ÓÃÍ¾£º¸ù¾İ Index ºÍ Sub-index ²éÕÒ¶ÔÏóÌõÄ¿¡£
- * ·µ»Ø£ºÕÒµ½Ê±Í¨¹ı entry Êä³öµØÖ·£»Î´Öª¶ÔÏó·µ»Ø CO_ERR_OD_NOT_FOUND¡£
+ * ç”¨é€”ï¼šæ ¹æ® Index å’Œ Sub-index æŸ¥æ‰¾å¯¹è±¡æ¡ç›®ã€‚
+ * è¿”å›ï¼šæ‰¾åˆ°æ—¶é€šè¿‡ entry è¾“å‡ºåœ°å€ï¼›æœªçŸ¥å¯¹è±¡è¿”å› CO_ERR_OD_NOT_FOUNDã€‚
  */
 co_status_t co_od_find(const co_od_table_t *table, uint16_t index,
                        uint8_t subindex, const co_od_entry_t **entry);
 
 /**
- * ÓÃÍ¾£º¶ÁÈ¡¶ÔÏóÖµ£¬²¢¼ì²éÊä³öÖ¸ÕëºÍ³¤¶È¡£
- * ËµÃ÷£ºro ºÍ rw ¶ÔÏó¶¼ÔÊĞí¶ÁÈ¡£»Êı¾İ°´ CANopen Ğ¡¶ËË³Ğò½»¸ø»Øµ÷¡£
+ * ç”¨é€”ï¼šè¯»å–å¯¹è±¡å€¼ï¼Œå¹¶æ£€æŸ¥è¾“å‡ºæŒ‡é’ˆå’Œé•¿åº¦ã€‚
+ * è¯´æ˜ï¼šro å’Œ rw å¯¹è±¡éƒ½å…è®¸è¯»å–ï¼›æ•°æ®æŒ‰ CANopen å°ç«¯é¡ºåºäº¤ç»™å›è°ƒã€‚
  */
 co_status_t co_od_read(const co_od_entry_t *entry, uint8_t *data,
                        uint8_t data_length);
 
 /**
- * ÓÃÍ¾£º¼ì²éÈ¨ÏŞ¡¢×´Ì¬¡¢³¤¶ÈºÍÖµ·¶Î§ºóĞ´Èë¶ÔÏó¡£
- * ËµÃ÷£ºwrite_preop_only ¶ÔÏóÖ»ÓĞÔÚ CO_NMT_PRE_OPERATIONAL Ê±ÔÊĞíĞ´Èë¡£
+ * ç”¨é€”ï¼šæ£€æŸ¥æƒé™ã€çŠ¶æ€ã€é•¿åº¦å’Œå€¼èŒƒå›´åå†™å…¥å¯¹è±¡ã€‚
+ * è¯´æ˜ï¼šwrite_preop_only å¯¹è±¡åªæœ‰åœ¨ CO_NMT_PRE_OPERATIONAL æ—¶å…è®¸å†™å…¥ã€‚
  */
 co_status_t co_od_write(const co_od_entry_t *entry, co_nmt_state_t state,
                         const uint8_t *data, uint8_t data_length);

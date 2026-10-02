@@ -60,10 +60,10 @@ int main(void)
 
     /*7. 第一次处理 Operational，发送两个 TPDO*/
     CHECK(co_pdo_process(&pdo, 0u) == CO_OK);                                   // 第一次调用 co_pdo_process() 时：当前状态是 Operational，previous_operational 原来是 0，因此函数认为节点刚进入 Operational：pending_tpdo1置1，pending_tpdo2置1
-    CHECK(fake.sends == 2u && fake.frame.id == 0x281u && fake.frame.dlc == 4u); // 于是连续发送：TPDO1（can-id：0x181）和TPDO2（can-id：0x281）发送次数从 0 变成 2。最后一次发送的是 TPDO2，所以：fake.frame.id == 0x281，fake.frame.dlc == 4
+    CHECK(fake.sends == 2u && fake.frame.id == 0x281u && fake.frame.dlc == 4u); // 于是连续发送：TPDO1（can-id：0x181）和TPDO2（can-id：0x281）发送次数从 0 变成 2。最后一次发送的是 TPDO2，所以：fake.frame.id == 0x281，fake.frame.dlc == 4字节
     /*8. DI 变化触发 TPDO1：更新设备输入：DI = 3，AI1 = 100 × 8，AI2 = 200 × 8*/
     CHECK(co_device_od_update_inputs(&device, 3u, 100u, 200u) == CO_OK);
-    // PDO 模块比较：当前 DI = 3，上一次 last_di = 0，发现 DI 变化：pending_tpdo1 = 1;于是发送 TPDO1。
+    // PDO 模块比较：当前 DI = 3，上一次 last_di = 0，发现 DI 变化：pending_tpdo1 = 1;于是发送 TPDO1，上报数字输入值DI
     CHECK(co_pdo_process(&pdo, 0u) == CO_OK && fake.sends == 3u && fake.frame.id == 0x181u && fake.frame.data[0] == 3u); // 由于 0x6423:00 默认是 0，AI 变化此时不会触发 TPDO2。
     /*9. 打开 AI 变化触发并修改 AI*/
     CHECK(write_value(&device, 0x6423u, 0u, 1u, 1u) == CO_OK);                               // 把0x6423:00 置1，表示允许 AI 变化触发 TPDO2。

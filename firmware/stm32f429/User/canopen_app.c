@@ -79,3 +79,13 @@ co_status_t Canopen_App_ProcessPdo(uint32_t elapsed_ms)
 {
     return co_pdo_process(&pdo, elapsed_ms);
 }
+
+co_status_t Canopen_App_UpdateInputs(uint8_t di, uint16_t ai1, uint16_t ai2)
+{
+    return co_device_od_update_inputs(&device, di, ai1, ai2);
+}
+
+co_status_t Canopen_App_GetOutputs(uint8_t *outputs)
+{
+    return co_device_od_get_outputs(&device, outputs);
+}

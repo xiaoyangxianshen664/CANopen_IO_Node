@@ -15,6 +15,12 @@ co_status_t Canopen_App_PdoReceive(const can_frame_t *frame);
 co_status_t Canopen_App_ProcessHeartbeat(uint32_t elapsed_ms);
 co_status_t Canopen_App_ProcessPdo(uint32_t elapsed_ms);
 
+/* 把板级输入同步到对象字典，供 PDO/SDO 读取。 */
+co_status_t Canopen_App_UpdateInputs(uint8_t di, uint16_t ai1, uint16_t ai2);
+
+/* 读取对象字典中的 DO 命令，供板级输出执行。 */
+co_status_t Canopen_App_GetOutputs(uint8_t *outputs);
+
 /* 最近一次需要应用关注的协议或传输错误；CO_IGNORED 不会写入。 */
 extern volatile co_status_t canopen_last_error;
 

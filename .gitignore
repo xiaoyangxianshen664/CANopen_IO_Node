@@ -8,6 +8,14 @@ Release/
 *.hex
 *.bin
 *.map
+*.axf
+*.crf
+*.dep
+*.iex
+*.uvoptx
+*.uvguix.*
+**/Project/Objects/
+**/Project/Listings/
 
 # IDE/user files
 .vscode/

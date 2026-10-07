@@ -16,9 +16,9 @@
 
 阶段 1 基础层、阶段 2 通用对象字典及 36 条实际对象、阶段 3 NMT/Boot-up、阶段 4 Heartbeat Producer、阶段 5 expedited SDO Server、阶段 6 固定 PDO、阶段 7 STM32F429 bxCAN 适配、阶段 8 FreeRTOS/真实 I/O 和阶段 9 EMCY/可靠性已完成。PC 协议测试全部通过，实机已验证 NMT、Heartbeat、SDO、RPDO、TPDO、DI、DO、双路 AI、自动上报以及看门狗 EMCY 上报/清除/安全输出恢复。阶段 10 用于汇总阶段 1～9 的完整工程和 GitHub 交付。
 
-阶段 8 固件交付范围包括四个 FreeRTOS 任务、CAN 接收队列、ADC1 双通道 DMA 半区通知、真实按键 DI、RGB LED DO 以及 AI 输入同步到对象字典的链路。阶段 9 增加纯 C EMCY、故障重试、看门狗故障记录、安全输出和稳定恢复。完整阶段记录见 [项目阶段交接文件](docs/项目阶段交接文件.md)。最终工程包含 `canopen/`、`tests/`、`firmware/` 和协议设计文档；`build/`、`images/` 及 PCB 材料不纳入本次交付。
+阶段 8 固件交付范围包括四个 FreeRTOS 任务、CAN 接收队列、ADC1 双通道 DMA 半区通知、真实按键 DI、RGB LED DO 以及 AI 输入同步到对象字典的链路。阶段 9 增加纯 C EMCY、故障重试、看门狗故障记录、安全输出和稳定恢复。最终工程包含 `canopen/`、`tests/`、`firmware/` 和 5 份核心协议文档；`build/`、`images/` 及 PCB 材料不纳入本次交付。
 
-提供 [项目基线 EDS v1.1](eds/CANopen_IO_Node.eds) 和 [对象表与复核记录](docs/阶段2对象表与规范复核.md)。PDO 的 COB-ID、传输类型、映射固定只读；抑制时间固定0，事件周期默认0且可在 Pre-operational 修改。AI 使用 INTEGER16 表示原始ADC乘8（0～32760）；6423控制模拟量变化触发。Vendor-ID=0 为未分配的开发占位。阶段2对象模型原文核验、第三方离线 EDS 导入和实机互通均已完成；项目不宣称完整 CiA 401 一致性认证。
+提供 [项目基线 EDS v1.1](eds/CANopen_IO_Node.eds) 和 [对象字典草案](docs/对象字典草案.md)。PDO 的 COB-ID、传输类型、映射固定只读；抑制时间固定0，事件周期默认0且可在 Pre-operational 修改。AI 使用 INTEGER16 表示原始ADC乘8（0～32760）；6423控制模拟量变化触发。Vendor-ID=0 为未分配的开发占位。阶段2对象模型原文核验、第三方离线 EDS 导入和实机互通均已完成；项目不宣称完整 CiA 401 一致性认证。
 
 ## PC 构建与测试
 
@@ -30,7 +30,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-接口说明见 `canopen/README.md`，测试证据见 `docs/阶段1测试记录.md`、`docs/阶段2测试记录.md`、`docs/阶段3测试记录.md`、`docs/项目阶段交接文件.md` 和 `docs/github交付记录.md`。
+接口说明见 `canopen/README.md`，测试源码位于 `tests/`；协议设计文档见 `docs/COB-ID与PDO映射.md`、`docs/EDS草案.md`、`docs/NMT与Heartbeat状态图.md`、`docs/SDO-abort码表.md` 和 `docs/对象字典草案.md`。
 
 ## GitHub 提交流程
 
@@ -72,4 +72,4 @@ git push
 
 
 
-当前设计与后续约束见 [阶段2冻结基线](docs/阶段2冻结基线-v1.1.md)。
+当前设计与后续约束见 [对象字典草案](docs/对象字典草案.md)。

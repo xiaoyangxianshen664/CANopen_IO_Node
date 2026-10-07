@@ -32,6 +32,6 @@ SDO DLC=8、RPDO1 DLC=1、DO 保留位、NMT 命令有效性和运行状态限�
 
 学习顺序：`co_device_od.h` → `co_device_od.c` → `tests/test_co_device_od.c` → EDS。代码继续使用 GB2312（代码页 936），Markdown/Python 为 UTF-8，EDS 为 ASCII。
 
-初始化后的设备包含自引用指针，禁止按值复制；须串行访问。INTEGER16 范围检查使用 int64_t，EDS 类型编号与内部类型枚举不是同一套编号。详细默认值、生命周期、SDO 状态门控、心跳重计时及 PDO 标志见 [规范复核](../docs/阶段2对象表与规范复核.md)。
+初始化后的设备包含自引用指针，禁止按值复制；须串行访问。INTEGER16 范围检查使用 int64_t，EDS 类型编号与内部类型枚举不是同一套编号。详细对象定义见 [对象字典草案](../docs/对象字典草案.md)。
 
-2026-09-23：阶段2基线已冻结，包含6423 BOOLEAN；AI对象值为原始ADC乘8，PDO事件周期默认0，抑制时间固定0。规范依据见 `../docs/阶段2冻结基线-v1.1.md`。
+2026-09-23：阶段2基线已冻结，包含6423 BOOLEAN；AI对象值为原始ADC乘8，PDO事件周期默认0，抑制时间固定0。相关协议设计见 `../docs/EDS草案.md` 和 `../docs/COB-ID与PDO映射.md`。

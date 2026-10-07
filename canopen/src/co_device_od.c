@@ -187,6 +187,18 @@ co_status_t co_device_od_get_outputs(const co_device_od_t *device, uint8_t *outp
     return CO_OK;
 }
 
+co_status_t co_device_od_force_safe_outputs(co_device_od_t *device)
+{
+    if (!ready(device))
+        return CO_ERR_ARGUMENT;
+    if (device->fields[DO_SLOT].value != 0u)
+    {
+        device->fields[DO_SLOT].value = 0u;
+        device->fields[DO_SLOT].writes++;
+    }
+    return CO_OK;
+}
+
 /* 用途：应用更新0x1001错误寄存器，虽然该对象对主站只读。
  * 参数：error为错误位集合；bit6及CiA401保留bit5不能置1；任何错误自动带通用错误bit0。
  * 返回：非法参数/保留位错误不改旧值；成功仅更新RAM，不发送EMCY。 */

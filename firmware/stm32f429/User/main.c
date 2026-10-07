@@ -9,6 +9,7 @@
 #include "./SysTick/SysTick.h"
 #include "./ADC/ADC_Multi.h"
 #include "bsp_can.h"
+#include "./IWDG/bsp_iwdg.h"
 #include "./freertos_demo.h"
 
 int main(void)
@@ -24,6 +25,10 @@ int main(void)
     Usart1_DMA_Init();
     TIM6_Init();
     CAN_Config();
+    if (BSP_IWDG_Init() == 0u)
+    {
+        for (;;) {}
+    }
 
     HAL_UART_AbortReceive(&huart1);
     HAL_UART_Receive_DMA(&huart1, dma_rx_buf, DMA_RX_BUF_SIZE);

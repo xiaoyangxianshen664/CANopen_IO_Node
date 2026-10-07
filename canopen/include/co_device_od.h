@@ -36,6 +36,7 @@ co_status_t co_device_od_update_inputs(co_device_od_t *device, uint8_t di,
                                        uint16_t ai1, uint16_t ai2);
 /* 应用读取 DO 命令，后续硬件层负责实际输出和故障安全覆盖。 */
 co_status_t co_device_od_get_outputs(const co_device_od_t *device, uint8_t *outputs);
+co_status_t co_device_od_force_safe_outputs(co_device_od_t *device);
 /* 设置通信错误寄存器；bit6 为保留位，必须为 0。具体故障映射在 EMCY 阶段完成。 */
 co_status_t co_device_od_set_error(co_device_od_t *device, uint8_t error);
 /* 返回周期和成功写入次数；计数自然回绕，心跳模块在串行处理写入后观察它。 */

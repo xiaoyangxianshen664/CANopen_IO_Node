@@ -1,5 +1,29 @@
 # GitHub 交付记录
 
+## 阶段9：EMCY 与可靠性（2026-10-07）
+
+### 本次交付范围
+
+- `canopen/include/co_emcy.h`、`canopen/src/co_emcy.c`：纯 C EMCY 协议服务；
+- `tests/test_co_emcy.c`、`canopen/CMakeLists.txt`、`tests/CMakeLists.txt`：EMCY 测试及构建接入；
+- `canopen/include/co_device_od.h`、`canopen/src/co_device_od.c`：安全输出强制清零接口；
+- `firmware/stm32f429/BSP/CAN/bsp_can.c/.h`：CAN 接收帧计数；
+- `firmware/stm32f429/BSP/IWDG/bsp_iwdg.c/.h`、`User/main.c`、`User/stm32f4xx_hal_conf.h`：IWDG 初始化和刷新支持；
+- `firmware/stm32f429/User/canopen_app.c/.h`、`User/freertos_demo.c`：EMCY、可靠性故障处理、安全输出和恢复流程；
+- `docs/项目2阶段进度.md`、`docs/项目阶段交接文件.md`、阶段9源码学习笔记。
+
+### 验证结果
+
+- 纯 C EMCY 测试已接入工程；测试通过报告成功、发送失败后待重试、清除成功和清除失败后重试等状态转换。
+- 测试固件实测 `0x081 / 06 FF 01 00 00 00 00 00` 看门狗 EMCY 报告，故障期间红灯进入安全状态；NMT Start 后稳定恢复并实测 `0x081 / 00 00 00 00 00 00 00 00` 清除帧。
+- 关闭 `FREERTOS_EMCY_TEST_INJECT_WATCHDOG` 后重新烧录正式固件，上电只收到 `0x701 / 00`、`0x701 / 7F`，未再自动上报 EMCY。
+- 本次工作区此前存在阶段8遗留修改、副本目录、第三方库和临时文件，均不纳入本次精确提交。
+
+### 已知限制
+
+第一版没有多故障队列；Bus-off、FIFO 溢出和 ADC 停滞未通过破坏硬件逐项注入，仅验证了看门狗故障完整主链路。`reliability_recovery_ms` 以 CANopenTask 调用次数近似毫秒计时。
+
+
 ## 阶段6：PDO 和固定映射
 
 日期：2026-10-01

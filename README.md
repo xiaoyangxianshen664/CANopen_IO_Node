@@ -14,9 +14,9 @@
 
 项目骨架已建立，硬件基线为野火挑战者 STM32F429IGT6 开发板；CAN 引脚和低压 I/O 方案已完成阶段 0 冻结。
 
-阶段 1 基础层、阶段 2 通用对象字典及 36 条实际对象、阶段 3 NMT/Boot-up、阶段 4 Heartbeat Producer、阶段 5 expedited SDO Server、阶段 6 固定 PDO、阶段 7 STM32F429 bxCAN 适配和阶段 8 FreeRTOS/真实 I/O 已完成。PC 协议测试全部通过，实机已验证 NMT、Heartbeat、SDO、RPDO、TPDO、DI、DO、双路 AI 和自动上报。阶段 9 EMCY 与可靠性尚未开始。
+阶段 1 基础层、阶段 2 通用对象字典及 36 条实际对象、阶段 3 NMT/Boot-up、阶段 4 Heartbeat Producer、阶段 5 expedited SDO Server、阶段 6 固定 PDO、阶段 7 STM32F429 bxCAN 适配、阶段 8 FreeRTOS/真实 I/O 和阶段 9 EMCY/可靠性已完成。PC 协议测试全部通过，实机已验证 NMT、Heartbeat、SDO、RPDO、TPDO、DI、DO、双路 AI、自动上报以及看门狗 EMCY 上报/清除/安全输出恢复。阶段 10 完整验收和项目材料尚未开始。
 
-阶段 8 固件交付范围包括四个 FreeRTOS 任务、CAN 接收队列、ADC1 双通道 DMA 半区通知、真实按键 DI、RGB LED DO 以及 AI 输入同步到对象字典的链路。完整阶段记录见 [阶段 8 测试笔记](项目完成各阶段对应笔记/阶段8/阶段8测试.md) 和 [项目阶段交接文件](docs/项目阶段交接文件.md)。当前提交聚焦项目应用源码和验证文档；Keil 工程依赖的第三方 HAL/CMSIS/FreeRTOS 源码单独核对后再决定是否随仓库发布。
+阶段 8 固件交付范围包括四个 FreeRTOS 任务、CAN 接收队列、ADC1 双通道 DMA 半区通知、真实按键 DI、RGB LED DO 以及 AI 输入同步到对象字典的链路。阶段 9 增加纯 C EMCY、故障重试、看门狗故障记录、安全输出和稳定恢复。完整阶段记录见 [项目阶段交接文件](docs/项目阶段交接文件.md)。当前提交聚焦项目应用源码和验证文档；Keil 工程依赖的第三方 HAL/CMSIS/FreeRTOS 源码单独核对后再决定是否随仓库发布。
 
 提供 [项目基线 EDS v1.1](eds/CANopen_IO_Node.eds) 和 [对象表与复核记录](docs/阶段2对象表与规范复核.md)。PDO 的 COB-ID、传输类型、映射固定只读；抑制时间固定0，事件周期默认0且可在 Pre-operational 修改。AI 使用 INTEGER16 表示原始ADC乘8（0～32760）；6423控制模拟量变化触发。Vendor-ID=0 为未分配的开发占位。阶段2对象模型原文核验与第三方离线EDS导入已完成；实机互通尚待完成，不宣称完整 CiA 401 实现或认证。
 
@@ -30,7 +30,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-接口说明见 `canopen/README.md`，测试证据见 `docs/阶段1测试记录.md`、`docs/阶段2测试记录.md`、`docs/阶段3测试记录.md`。
+接口说明见 `canopen/README.md`，测试证据见 `docs/阶段1测试记录.md`、`docs/阶段2测试记录.md`、`docs/阶段3测试记录.md`、`docs/项目阶段交接文件.md` 和 `docs/github交付记录.md`。
 
 ## GitHub 提交流程
 

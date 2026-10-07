@@ -19,6 +19,7 @@ volatile uint32_t can_rx_overflow_count; /* 队列满导致丢帧的次数。 */
 volatile uint32_t can_tx_busy_count;     /* 三个发送邮箱全满的次数。 */
 volatile uint32_t can_error_count;       /* HAL CAN 错误回调次数。 */
 volatile uint32_t can_bus_off_count;     /* Bus-off 错误次数。 */
+volatile uint32_t can_rx_frame_count; /* Total CAN frames received. */
 
 /**
  * @brief 配置 CAN1 使用的 PB8/PB9 复用引脚。
@@ -150,6 +151,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     /*hcan→ 哪个 CAN 外设，CAN_RX_FIFO0 → 从 FIFO0 读取，&rx_header  → 把帧头写入 rx_header，rx_data     → 把数据写入 rx_data[8]*/
     if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_data) != HAL_OK) /* 这一步从硬件 FIFO0 读取一帧报文。 */
         return;                                                                  // 如果读取失败：直接退出中断回调，不继续处理无效数据。
+    can_rx_frame_count++; /* RX activity confirms controller recovery. */
 
     /*2：计算软件环形队列的下一个写位置：*/
     next = (uint8_t)((rx_queue.head + 1u) % 16u); /* 环形队列下一个位置。 */

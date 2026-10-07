@@ -162,6 +162,12 @@ static int test_device(void)
     CHECK(co_device_od_init(&d,1,NULL)==CO_OK);
     CHECK(read_at(&d,0x6200,1)==0 && read_at(&d,0x1017,0)==1000);
     CHECK(read_at(&d,0x6423,0)==0);
+    CHECK(write_at(&d,0x6200,1,CO_NMT_OPERATIONAL,5,1)==CO_OK);
+    CHECK(co_device_od_get_outputs(&d,&output)==CO_OK && output==5);
+    CHECK(co_device_od_force_safe_outputs(&d)==CO_OK);
+    CHECK(co_device_od_get_outputs(&d,&output)==CO_OK && output==0);
+    CHECK(read_at(&d,0x6200,1)==0);
+    CHECK(co_device_od_force_safe_outputs(NULL)==CO_ERR_ARGUMENT);
     CHECK(co_device_od_get_outputs(&d,NULL)==CO_ERR_ARGUMENT);
     CHECK(co_device_od_get_heartbeat(&d,NULL,&writes)==CO_ERR_ARGUMENT);
     CHECK(co_device_od_get_heartbeat(&d,&period,NULL)==CO_ERR_ARGUMENT);

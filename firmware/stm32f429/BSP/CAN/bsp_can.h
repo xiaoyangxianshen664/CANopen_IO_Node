@@ -21,6 +21,7 @@ extern volatile uint32_t can_rx_overflow_count;
 extern volatile uint32_t can_tx_busy_count;
 extern volatile uint32_t can_error_count;
 extern volatile uint32_t can_bus_off_count;
+extern volatile uint32_t can_rx_frame_count;
 
 /**
  * @brief 初始化 CAN1 GPIO、位时序、过滤器和接收中断。

@@ -6,83 +6,13 @@
 
 ![CANopen IO Node 项目总览](images/3：项目总览图/项目2总览图.png)
 
-![CANopen IO Node 系统总览](images/3：项目总览图/项目2总览图2.png)
+完整总览图：[项目2总览图2](images/3：项目总览图/项目2总览图2.png)
 
-## PCB 设计与焊接
+## 图片资料
 
-![原理图及 PCB 设计](images/1：pcb及焊接/1：原理图及pcb设计.png)
+- [PCB 设计与焊接过程](images/1：pcb及焊接/)
+- [软件代码与板上测试记录](images/2：软件代码测试/)
 
-![PCB 3D 视图](images/1：pcb及焊接/2：pcb对应3D视图.png)
-
-![PCB 裸板](images/1：pcb及焊接/3：实物裸板.png)
-
-![焊接电源及芯片](images/1：pcb及焊接/4：焊接电源及芯片.png)
-
-![焊接完成并开始测试](images/1：pcb及焊接/5：焊接完成开始测试.png)
-
-## 软件代码测试
-
-### 启动与 CANopen 状态
-
-![设备正常启动](images/2：软件代码测试/1：设备正常启动.png)
-
-![节点进入 Operational](images/2：软件代码测试/2：节点已进入 Operationa.png)
-
-### PDO：数字输出与数字输入
-
-![控制 LED1 亮](images/2：软件代码测试/3.1控制灯led1亮.png)
-
-![LED1 点亮实物](images/2：软件代码测试/3.1对应灯led1亮的实物图.png)
-
-![控制 LED2 亮](images/2：软件代码测试/3.2控制灯led2亮.png)
-
-![LED2 点亮实物](images/2：软件代码测试/3.2对应灯led2亮的实物图.png)
-
-![LED 全灭实物](images/2：软件代码测试/3.2对应led全灭实物图.png)
-
-![控制 LED3 亮](images/2：软件代码测试/3.3控制灯led3亮.png)
-
-![LED3 点亮实物](images/2：软件代码测试/3.3对应灯led3亮的实物图.png)
-
-![控制 LED4 亮](images/2：软件代码测试/3.4对应led4亮.png)
-
-![LED4 点亮实物](images/2：软件代码测试/3.4对应灯led4亮的实物图.png)
-
-![发送 00 关闭所有 LED](images/2：软件代码测试/3.5发送00控制所有灯灭.png)
-
-![按下 KEY1](images/2：软件代码测试/4.1：按下key1.png)
-
-![按下 KEY2](images/2：软件代码测试/4.2：按下key2.png)
-
-![按下 KEY3](images/2：软件代码测试/4.3：按下key3.png)
-
-![按下 KEY4](images/2：软件代码测试/4.4：按下key4.png)
-
-![组合按下 KEY2 和 KEY3](images/2：软件代码测试/4.5组合按下key2和key3.png)
-
-### SDO：ADC 读取与 DO 写入
-
-![SDO 读取 ADC1 并观察电位器变化](images/2：软件代码测试/5.1：SDO读取ADC1采样值及拧动后的采样值变化有效读取到.png)
-
-![SDO 读取 ADC2 并观察电位器变化](images/2：软件代码测试/5.2：SDO读取ADC2采样值及拧动后的采样值变化有效读取到.png)
-
-![SDO 写入 DO 点亮 LED 报文](images/2：软件代码测试/5.3：SDO%20写入控制%20DO%20点亮%20LED.png)
-
-![SDO 写入 DO 点亮 LED 实物](images/2：软件代码测试/5.3：SDO写入控制DO点亮led实物图.png)
-
-![SDO 写入 DO 熄灭 LED 报文](images/2：软件代码测试/5.4：SDO%20写入控制%20DO%20熄灭%20LED.png)
-
-![SDO 写入 DO 熄灭 LED 实物](images/2：软件代码测试/5.4：SDO写入控制DO熄灭led实物图.png)
-
-### NMT：节点状态控制
-
-![NMT Stop 测试准备](images/2：软件代码测试/6.1：测试NMT的stop状态（先SDO打开led灯）.png)
-
-![NMT 切换到 Stop](images/2：软件代码测试/6.2：切换NMT状态至STOP状态（此时灯灭）.png)
-
-![Heartbeat 上报 NMT Stopped 状态](images/2：软件代码测试/6.3：系统心跳上报nmt状态至04.png)
-
-![NMT Reset Node 测试](images/2：软件代码测试/7.1：测 Reset Node.png)
 
 ## 目录结构
 

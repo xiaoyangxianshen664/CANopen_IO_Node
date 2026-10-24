@@ -1,6 +1,88 @@
 # CANopen IO Node
 
-基于 STM32 的 CANopen IO 节点项目。
+基于 STM32F429ZGT6 与 FreeRTOS 的 CANopen IO 节点项目，已完成自制 PCB 焊接和实板验证。
+
+## 项目总览
+
+![CANopen IO Node 项目总览](images/3：项目总览图/项目2总览图.png)
+
+![CANopen IO Node 系统总览](images/3：项目总览图/项目2总览图2.png)
+
+## PCB 设计与焊接
+
+![原理图及 PCB 设计](images/1：pcb及焊接/1：原理图及pcb设计.png)
+
+![PCB 3D 视图](images/1：pcb及焊接/2：pcb对应3D视图.png)
+
+![PCB 裸板](images/1：pcb及焊接/3：实物裸板.png)
+
+![焊接电源及芯片](images/1：pcb及焊接/4：焊接电源及芯片.png)
+
+![焊接完成并开始测试](images/1：pcb及焊接/5：焊接完成开始测试.png)
+
+## 软件代码测试
+
+### 启动与 CANopen 状态
+
+![设备正常启动](images/2：软件代码测试/1：设备正常启动.png)
+
+![节点进入 Operational](images/2：软件代码测试/2：节点已进入 Operationa.png)
+
+### PDO：数字输出与数字输入
+
+![控制 LED1 亮](images/2：软件代码测试/3.1控制灯led1亮.png)
+
+![LED1 点亮实物](images/2：软件代码测试/3.1对应灯led1亮的实物图.png)
+
+![控制 LED2 亮](images/2：软件代码测试/3.2控制灯led2亮.png)
+
+![LED2 点亮实物](images/2：软件代码测试/3.2对应灯led2亮的实物图.png)
+
+![LED 全灭实物](images/2：软件代码测试/3.2对应led全灭实物图.png)
+
+![控制 LED3 亮](images/2：软件代码测试/3.3控制灯led3亮.png)
+
+![LED3 点亮实物](images/2：软件代码测试/3.3对应灯led3亮的实物图.png)
+
+![控制 LED4 亮](images/2：软件代码测试/3.4对应led4亮.png)
+
+![LED4 点亮实物](images/2：软件代码测试/3.4对应灯led4亮的实物图.png)
+
+![发送 00 关闭所有 LED](images/2：软件代码测试/3.5发送00控制所有灯灭.png)
+
+![按下 KEY1](images/2：软件代码测试/4.1：按下key1.png)
+
+![按下 KEY2](images/2：软件代码测试/4.2：按下key2.png)
+
+![按下 KEY3](images/2：软件代码测试/4.3：按下key3.png)
+
+![按下 KEY4](images/2：软件代码测试/4.4：按下key4.png)
+
+![组合按下 KEY2 和 KEY3](images/2：软件代码测试/4.5组合按下key2和key3.png)
+
+### SDO：ADC 读取与 DO 写入
+
+![SDO 读取 ADC1 并观察电位器变化](images/2：软件代码测试/5.1：SDO读取ADC1采样值及拧动后的采样值变化有效读取到.png)
+
+![SDO 读取 ADC2 并观察电位器变化](images/2：软件代码测试/5.2：SDO读取ADC2采样值及拧动后的采样值变化有效读取到.png)
+
+![SDO 写入 DO 点亮 LED 报文](images/2：软件代码测试/5.3：SDO%20写入控制%20DO%20点亮%20LED.png)
+
+![SDO 写入 DO 点亮 LED 实物](images/2：软件代码测试/5.3：SDO写入控制DO点亮led实物图.png)
+
+![SDO 写入 DO 熄灭 LED 报文](images/2：软件代码测试/5.4：SDO%20写入控制%20DO%20熄灭%20LED.png)
+
+![SDO 写入 DO 熄灭 LED 实物](images/2：软件代码测试/5.4：SDO写入控制DO熄灭led实物图.png)
+
+### NMT：节点状态控制
+
+![NMT Stop 测试准备](images/2：软件代码测试/6.1：测试NMT的stop状态（先SDO打开led灯）.png)
+
+![NMT 切换到 Stop](images/2：软件代码测试/6.2：切换NMT状态至STOP状态（此时灯灭）.png)
+
+![Heartbeat 上报 NMT Stopped 状态](images/2：软件代码测试/6.3：系统心跳上报nmt状态至04.png)
+
+![NMT Reset Node 测试](images/2：软件代码测试/7.1：测 Reset Node.png)
 
 ## 目录结构
 
@@ -12,11 +94,11 @@
 
 ## 开发状态
 
-项目骨架已建立，硬件基线为野火挑战者 STM32F429IGT6 开发板；CAN 引脚和低压 I/O 方案已完成阶段 0 冻结。
+本项目经历了协议层开发、阶段性验证，以及最终自制 STM32F429ZGT6 四层 PCB 的焊接和上板测试。SDRAM 因 PCB 网络标记问题未焊接，本轮不纳入验收。
 
-阶段 1 基础层、阶段 2 通用对象字典及 36 条实际对象、阶段 3 NMT/Boot-up、阶段 4 Heartbeat Producer、阶段 5 expedited SDO Server、阶段 6 固定 PDO、阶段 7 STM32F429 bxCAN 适配、阶段 8 FreeRTOS/真实 I/O 和阶段 9 EMCY/可靠性已完成。PC 协议测试全部通过，实机已验证 NMT、Heartbeat、SDO、RPDO、TPDO、DI、DO、双路 AI、自动上报以及看门狗 EMCY 上报/清除/安全输出恢复。阶段 10 用于汇总阶段 1～9 的完整工程和 GitHub 交付。
+协议层及 PC 测试已完成；自制板实测覆盖 CANopen 启动与心跳、NMT Stop/Start/Reset、PDO 控制四路 LED 与读取四路按键、SDO 读写及 ADC1/ADC2 输入变化。板级外设测试工程也已验证 SD 卡 FatFs、W25Q256 SPI Flash 和 RTC。
 
-阶段 8 固件交付范围包括四个 FreeRTOS 任务、CAN 接收队列、ADC1 双通道 DMA 半区通知、真实按键 DI、RGB LED DO 以及 AI 输入同步到对象字典的链路。阶段 9 增加纯 C EMCY、故障重试、看门狗故障记录、安全输出和稳定恢复。最终工程包含 `canopen/`、`tests/`、`firmware/` 和 5 份核心协议文档；`build/`、`images/` 及 PCB 材料不纳入本次交付。
+系统固件包含 FreeRTOS 任务、CAN 接收队列、ADC DMA 采样、真实按键 DI、四路 LED DO，以及输入同步到对象字典的链路；协议层支持 NMT、Heartbeat、SDO、PDO 和 EMCY。下方依次展示项目总览、自制 PCB 与焊接过程、以及软件和板上测试记录。
 
 提供 [项目基线 EDS v1.1](eds/CANopen_IO_Node.eds) 和 [对象字典草案](docs/对象字典草案.md)。PDO 的 COB-ID、传输类型、映射固定只读；抑制时间固定0，事件周期默认0且可在 Pre-operational 修改。AI 使用 INTEGER16 表示原始ADC乘8（0～32760）；6423控制模拟量变化触发。Vendor-ID=0 为未分配的开发占位。阶段2对象模型原文核验、第三方离线 EDS 导入和实机互通均已完成；项目不宣称完整 CiA 401 一致性认证。
 
